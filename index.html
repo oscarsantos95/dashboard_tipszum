@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de decisión · Meta × PremiumPay</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--navy:#1e3a6e;--thead:#3d63b0;--total:#28477f;--ink:#1f2937;--ink2:#6b7a90;
+--line:#e8edf5;--acc:#3d63b0;--ok:#22b573;--amber:#f5a623;--red:#e5484d;--r:14px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1580px;margin:0 auto;padding:18px}
+header.top{background:var(--navy);color:#fff;border-radius:var(--r);padding:18px 22px;margin-bottom:16px}
+header.top h1{font-size:19px;font-weight:650;letter-spacing:-.2px}
+header.top p{font-size:12.5px;color:#a8bcdc;margin-top:4px}
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:16px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:#93a9cd;font-weight:600}
+.fg select,.fg input{padding:7px 9px;border:1px solid rgba(255,255,255,.18);border-radius:7px;background:rgba(255,255,255,.1);color:#fff;font-size:13px;min-width:110px;font-family:inherit}
+.fg select option{background:var(--navy)}
+.fx{background:rgba(255,255,255,.14);border-radius:9px;padding:9px 13px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.fx b{font-size:12px;color:#fff}.fx small{font-size:11px;color:#a8bcdc}
+.fx input{width:88px;text-align:right;font-weight:700}
+button.rst{padding:8px 14px;border:0;border-radius:7px;background:#5b83d6;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.tabs{display:flex;gap:6px;margin-bottom:16px;background:#fff;padding:6px;border-radius:12px;box-shadow:0 1px 3px rgba(20,40,80,.07);width:fit-content;flex-wrap:wrap}
+.tab{padding:9px 18px;border:0;border-radius:8px;background:transparent;font-size:13.5px;font-weight:600;color:#6b7a90;cursor:pointer;font-family:inherit}
+.tab.on{background:var(--navy);color:#fff}
+.pane{display:none}.pane.on{display:block}
+.card{background:var(--card);border-radius:var(--r);padding:18px 20px 20px;box-shadow:0 1px 3px rgba(20,40,80,.07);margin-bottom:16px}
+.chead{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.ctitle{display:flex;align-items:center;gap:11px}
+.cicon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex:0 0 auto}
+.ctitle h3{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.ctitle small{display:block;font-size:11.5px;color:var(--ink2);font-weight:400}
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pill{padding:6px 13px;border:1px solid #d8e0ee;border-radius:8px;background:#fff;font-size:11.5px;color:#5a6b85;cursor:pointer;font-weight:500;white-space:nowrap;font-family:inherit}
+.pill.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+/* acciones */
+.act{display:flex;gap:13px;padding:14px 0;border-bottom:1px solid #eef2f8;align-items:flex-start}
+.act:last-child{border-bottom:0}
+.badge{flex:0 0 auto;padding:5px 11px;border-radius:7px;font-size:10.5px;font-weight:800;letter-spacing:.3px;color:#fff;min-width:104px;text-align:center}
+.b-esc{background:#188a55}.b-pau{background:#c8353a}.b-inv{background:#c78200}.b-opt{background:#3d63b0}.b-dat{background:#8fa0ba}
+.act-b{flex:1;min-width:0}
+.act-b h4{font-size:14px;font-weight:700;margin-bottom:3px}
+.act-b .ev{font-size:12.5px;color:var(--ink2);line-height:1.6}
+.act-b .ev b{color:var(--ink)}
+.conf{flex:0 0 auto;text-align:right;font-size:11px;color:var(--ink2);min-width:104px}
+.conf .cv{display:block;font-weight:800;font-size:12.5px}
+.c-alta{color:#188a55}.c-media{color:#c78200}.c-baja{color:#c8353a}
+.tw{overflow-x:auto;border-radius:9px}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+thead th{background:var(--thead);color:#fff;font-weight:600;font-size:11.5px;padding:11px 9px;text-align:right;white-space:nowrap;cursor:pointer;user-select:none}
+thead th:first-child{text-align:left;border-radius:9px 0 0 0;padding-left:14px}
+thead th:last-child{border-radius:0 9px 0 0}
+tbody td{padding:9px;text-align:right;white-space:nowrap;border-bottom:1px solid #eef2f8}
+tbody td:first-child{text-align:left;font-weight:600;padding-left:14px;color:#2a3a52}
+tbody tr:nth-child(even) td{background:#fbfcfe}
+tbody tr:hover td{background:#f2f6fd}
+tbody tr.sin td{background:#fffaf0!important;font-style:italic}
+td.nm{max-width:300px;white-space:normal;font-weight:600;line-height:1.3;font-size:11.5px}
+tfoot td{background:var(--total);color:#fff;font-weight:700;padding:12px 9px;text-align:right;white-space:nowrap}
+tfoot td:first-child{text-align:left;padding-left:14px;border-radius:0 0 0 9px}
+tfoot td:last-child{border-radius:0 0 9px 0}
+.heat{display:inline-block;padding:3px 7px;border-radius:5px;min-width:46px;text-align:right}
+.pos{color:#188a55;font-weight:700}.neg{color:#c8353a;font-weight:700}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+canvas{max-height:290px}
+.note{font-size:11.5px;color:var(--ink2);margin-top:10px;line-height:1.55}
+.tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:#e6efff;color:#3d63b0;margin-left:5px}
+.tag.w{background:#fff3d6;color:#9a6a00}.tag.fv{background:#e2f7ec;color:#188a55}
+.alerts{background:#fffaf0;border:1px solid #f3ddaa;border-radius:var(--r);padding:16px 19px;margin-bottom:16px}
+.alerts h3{font-size:13.5px;color:#8a5a00;margin-bottom:9px}
+.alerts ul{margin-left:17px;font-size:12.5px;line-height:1.7;color:#5c4a20}
+.alerts code{background:#f3ead6;padding:1px 5px;border-radius:3px;font-size:11px}
+.warnbox{background:#fdecec;border:1px solid #f3c2c2;border-radius:var(--r);padding:15px 18px;margin-bottom:16px}
+.warnbox h3{font-size:13.5px;color:#a02a2f;margin-bottom:7px}
+.warnbox p{font-size:12.5px;color:#7a2429;line-height:1.65}
+.cm{max-width:980px}
+.cm h2{font-size:20px;color:#1F3A5F;font-weight:700}
+.cm .sb{font-size:12.5px;color:#6B7280;margin:2px 0 16px}
+table.cierre{width:100%;border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:13.5px}
+table.cierre th{background:#1F3A5F;color:#fff;font-weight:700;padding:11px 12px;text-align:center;border:1px solid #D5DCE2}
+table.cierre th:first-child{text-align:left}
+table.cierre td{padding:10px 12px;text-align:center;border:1px solid #D5DCE2}
+table.cierre td:first-child{text-align:left;font-weight:700}
+table.cierre tbody tr:nth-child(odd) td{background:#EAF1F5}
+table.cierre tbody tr.sin td{background:#FFF6E5;font-style:italic}
+table.cierre tfoot td{background:#2E6E8E;color:#fff;font-weight:700}
+.cmnote{font-size:11px;color:#6B7280;margin-top:9px;line-height:1.6}
+.acts{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+.acts button{padding:8px 15px;border:1px solid #d8e0ee;border-radius:8px;background:#fff;font-size:12.5px;font-weight:600;color:#3d63b0;cursor:pointer;font-family:inherit}
+footer{text-align:center;color:var(--ink2);font-size:11.5px;padding:6px 0 22px}
+@media(max-width:1100px){.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="wrap">
+
+<header class="top">
+  <h1>Panel de decisión · Meta Ads × PremiumPay</h1>
+  <p id="sub"></p>
+  <div class="filters">
+    <div class="fg"><label>Desde</label><input type="date" id="f-from"></div>
+    <div class="fg"><label>Hasta</label><input type="date" id="f-to"></div>
+    <div class="fg"><label>Tipster</label><select id="f-tip"><option value="">Todos</option></select></div>
+    <div class="fg"><label>País</label><select id="f-pais"><option value="">Todos</option></select></div>
+    <div class="fg"><label>&nbsp;</label><button class="rst" id="f-reset">Restablecer</button></div>
+    <div class="fx">
+      <b>1 USD =</b><input type="number" id="fx" step="0.0001" min="0.1" max="2">
+      <b>EUR</b><small id="fxinfo"></small>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab on" data-p="p0">Qué hacer hoy</button>
+  <button class="tab" data-p="p1">Resumen</button>
+  <button class="tab" data-p="p2">Detalle</button>
+  <button class="tab" data-p="p3">Cierre de mes</button>
+</div>
+
+<!-- ============ QUÉ HACER HOY ============ -->
+<div class="pane on" id="p0">
+  <div class="warnbox" id="suf"></div>
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#1e3a6e">✓</div>
+      <div><h3>Acciones recomendadas</h3><small>Ordenadas por inversión en juego · cada una con la evidencia que la sostiene</small></div></div></div>
+    <div id="acciones"></div>
+  </div>
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#c8353a">⚕</div>
+      <div><h3>Diagnóstico por conjunto</h3><small>Dónde está el problema de cada conjunto: captación, conversión a canal, o monetización</small></div></div></div>
+    <div class="tw"><table id="t-diag"><thead></thead><tbody></tbody></table></div>
+    <div class="note">La lógica de diagnóstico separa las tres fases del embudo. <b>Captación</b>: CPM o CPC altos, pocos leads por euro. <b>Conversión a canal</b>: buen coste por lead pero pocos entran al Telegram — apunta a la landing, al enlace de invitación o a un desajuste entre lo que promete el anuncio y lo que se encuentran. <b>Monetización</b>: entran muchos pero no pagan — apunta al contenido, la oferta o el precio.</div>
+  </div>
+</div>
+
+<!-- ============ RESUMEN ============ -->
+<div class="pane" id="p1">
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#1e3a6e">▤</div>
+      <div><h3>Liga de tipsters</h3><small>Comparativa con las mismas métricas</small></div></div>
+      <div class="pills" id="p-liga"></div></div>
+    <div class="tw"><table id="t-liga"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+    <div class="note" id="liga-note"></div>
+  </div>
+  <div class="row2">
+    <div class="card">
+      <div class="chead"><div class="ctitle"><div class="cicon" style="background:#3d63b0">◎</div>
+        <div><h3>Mapa de decisión</h3><small>Coste de traer a alguien frente a lo que vale · la diagonal es el punto de equilibrio</small></div></div>
+        <div class="pills" id="p-mapa"></div></div>
+      <canvas id="c-mapa"></canvas>
+      <div class="note">Por encima de la diagonal el conjunto devuelve más de lo que cuesta. Por debajo, pierde dinero. El tamaño de la burbuja es la inversión.</div>
+    </div>
+    <div class="card">
+      <div class="chead"><div class="ctitle"><div class="cicon" style="background:#c8353a">↘</div>
+        <div><h3>Retención en el canal</h3><small>Qué porcentaje sigue dentro según los días transcurridos</small></div></div></div>
+      <canvas id="c-ret"></canvas>
+      <div class="note" id="ret-note"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#3d63b0">📅</div>
+      <div><h3>Evolución diaria</h3><small>Entradas por tipster y CPL agregado</small></div></div></div>
+    <canvas id="c-dia"></canvas>
+  </div>
+</div>
+
+<!-- ============ DETALLE ============ -->
+<div class="pane" id="p2">
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#1e3a6e">▼</div>
+      <div><h3>Embudo</h3><small>De la impresión al pago, con el origen de cada etapa</small></div></div></div>
+    <div class="tw"><table id="t-fun"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+    <div class="note" id="fun-note"></div>
+  </div>
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#3d63b0">▦</div>
+      <div><h3>Conjuntos de anuncios</h3><small>Cohorte por conjunto · cada suscriptor cuenta donde entró</small></div></div>
+      <div class="pills" id="p-conj"></div></div>
+    <div class="tw"><table id="t-conj"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+  </div>
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#1e3a6e">▧</div>
+      <div><h3>Ubicaciones</h3><small>Sólo métricas de Meta: las entradas no tienen ubicación, viven en el enlace</small></div></div></div>
+    <div class="tw"><table id="t-plac"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+  </div>
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#3d63b0">📈</div>
+      <div><h3>Detalle diario</h3><small>CPL exacto: inversión del día entre entradas reales de ese día</small></div></div></div>
+    <div class="tw"><table id="t-dia"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+  </div>
+</div>
+
+<!-- ============ CIERRE ============ -->
+<div class="pane" id="p3">
+  <div class="card">
+    <div class="chead"><div class="ctitle"><div class="cicon" style="background:#1F3A5F">€</div>
+      <div><h3>Cierre de mes</h3><small>Cohorte por fecha de entrada · cifras exactas, sin prorrateo</small></div></div></div>
+    <div style="display:flex;flex-direction:column;gap:11px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:#6b7a90;font-weight:700;min-width:78px">Periodo</span>
+        <div class="pills" id="cm-per"></div>
+        <select id="cm-sem" style="padding:6px 11px;border:1px solid #d8e0ee;border-radius:8px;font-size:11.5px;font-family:inherit;color:#3d63b0;font-weight:600;display:none"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:#6b7a90;font-weight:700;min-width:78px">Agrupar por</span>
+        <div class="pills" id="cm-grp"></div>
+      </div>
+    </div>
+    <div class="cm">
+      <h2 id="cm-h">Cierre de mes</h2>
+      <div class="sb" id="cm-sub"></div>
+      <table class="cierre" id="cm-t"><thead></thead><tbody></tbody><tfoot></tfoot></table>
+      <div class="cmnote">CPL = Inversión / Entradas · Retorno (ROAS) = Ventas / Inversión. Las ventas se atribuyen al periodo en que entró el suscriptor que pagó.</div>
+      <div class="cmnote" id="cm-fx"></div>
+      <div class="acts">
+        <button id="cm-copy">Copiar tabla</button>
+        <button id="cm-csv">Descargar CSV</button>
+        <button id="cm-json">JSON para /excel-cierre-mes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="alerts" id="alerts"></div>
+<footer id="foot"></footer>
+</div>
+
+<script>
+let DATA=null;
+let D,PLAC,RET,AVI,OTROS,SIN,NOM,CU,D_MIN,D_MAX,FX,TIPS;
+const PAL=['#3d63b0','#22b573','#f5a623','#c8353a','#7e57c2','#00acc1','#8d6e63','#546e7a','#d81b60','#43a047','#5e35b1','#00897b','#6d4c41','#ad1457','#1565c0'];
+const TC={};
+function bind(){
+  D=DATA.daily;PLAC=DATA.placement;RET=DATA.retencion;AVI=DATA.avisos;OTROS=DATA.otros;
+  SIN=DATA.sin_conjunto;NOM=DATA.nombres;CU=DATA.cuadre;
+  D_MIN=DATA.rango[0];D_MAX=DATA.rango[1];FX=DATA.fx;
+  TIPS=[...new Set(D.map(r=>r.tipster))].sort();
+  TIPS.forEach((t,i)=>TC[t]=PAL[i%PAL.length]);
+  ST={from:D_MIN,to:D_MAX,tip:'',pais:''};
+}
+const nf=n=>(n||0).toLocaleString('es-ES',{maximumFractionDigits:0});
+const ef=n=>(isFinite(n)&&n!==null?n:0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const pf=n=>(isFinite(n)?n:0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' %';
+const xf=n=>(isFinite(n)?n:0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
+const dv=(a,b)=>b?a/b:null;
+const g=v=>v===null||!isFinite(v)?'—':v;
+const SVG={ok:'<svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#22b573"/><path d="M4.4 8.2l2.3 2.3 4.6-4.8" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
+wa:'<svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#f5a623"/><rect x="7.1" y="3.6" width="1.8" height="5.2" rx=".9" fill="#fff"/><circle cx="8" cy="11.4" r="1.05" fill="#fff"/></svg>',
+ko:'<svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#e5484d"/><path d="M5.4 5.4l5.2 5.2M10.6 5.4l-5.2 5.2" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
+nd:'<svg width="12" height="12" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="#c8d2e2" stroke-width="1.6"/></svg>'};
+function heat(v,mx,rgb){const a=mx>0?Math.min(1,Math.max(0,v/mx)):0;return a<.02?'':'background:rgba('+rgb+','+(0.08+a*0.7).toFixed(3)+')'}
+
+let ST={from:D_MIN,to:D_MAX,tip:'',pais:''},SORT={liga:'gasto',conj:'gasto',dia:'dia'},DIR={liga:-1,conj:-1,dia:1},MAPA='conj',CMG='tipster',CMP='rango',CMS='';
+const ch={};
+const F=()=>D.filter(r=>r.dia>=ST.from&&r.dia<=ST.to&&(!ST.tip||r.tipster===ST.tip)&&(!ST.pais||r.pais===ST.pais));
+const KM=['impresiones','alcance','clics','clics_all','lpv','leads','entradas','pagadores','pagos','ingresos','bajas'];
+function sum(rows){const o={gasto:0};KM.forEach(k=>o[k]=0);
+  rows.forEach(r=>{o.gasto+=(r.gasto_usd||0)*FX;KM.forEach(k=>o[k]+=r[k]||0)});return o}
+function met(m){return{...m,cpl:dv(m.gasto,m.entradas),cplm:dv(m.gasto,m.leads),cpc:dv(m.gasto,m.clics),
+  cpm:dv(m.gasto,m.impresiones)*1000,ctr:dv(m.clics,m.impresiones)*100,
+  l2e:dv(m.entradas,m.leads)*100,tasa:dv(m.pagadores,m.entradas)*100,
+  ing_ent:dv(m.ingresos,m.entradas),roas:dv(m.ingresos,m.gasto),
+  b24:dv(m.bajas,m.entradas)*100}}
+function grp(rows,key){const o={};rows.forEach(r=>{const k=r[key];(o[k]=o[k]||[]).push(r)});
+  return Object.entries(o).map(([k,v])=>({k,...met(sum(v))}))}
+
+/* ============ MOTOR DE DIAGNÓSTICO ============ */
+/* Umbrales de referencia calculados sobre el propio periodo, no fijos. */
+function bench(rows){const m=met(sum(rows));return{cpl:m.cpl,l2e:m.l2e,cplm:m.cplm,tasa:m.tasa}}
+function diagnostica(c,B){
+  if(c.gasto<5) return{fase:'Sin datos',causa:'Inversión demasiado baja para evaluar',accion:'ESPERAR',badge:'b-dat',conf:'baja',motivo:'menos de 5 € invertidos'};
+  // Genera leads pero NADIE llega al canal: el caso mas grave y mas claro
+  if(c.leads>=5 && c.entradas===0)
+    return{fase:'Conversión a canal',causa:'Genera leads pero ni una sola persona ha llegado al canal',accion:'REVISAR YA',badge:'b-pau',conf:'alta',
+      motivo:nf(c.leads)+' leads y 0 entradas — apunta a un enlace roto, mal nombrado o ausente en PremiumPay'};
+  if(c.leads===0) return{fase:'Captación',causa:'No genera ningún lead pese a tener entrega',accion:'PAUSAR',badge:'b-pau',conf:'alta',motivo:nf(c.impresiones)+' impresiones sin un solo lead'};
+  if(c.entradas===0)
+    return{fase:'Conversión a canal',causa:'Sin entradas registradas en el periodo',accion:'REVISAR',badge:'b-inv',conf:'baja',motivo:'solo '+nf(c.leads)+' leads, volumen insuficiente para concluir'};
+  if(c.l2e!==null && c.l2e < B.l2e*0.5 && c.leads>=15)
+    return{fase:'Conversión a canal',causa:'Consigue leads pero casi nadie llega al Telegram',accion:'INVESTIGAR',badge:'b-inv',conf:'alta',
+      motivo:'solo el '+pf(c.l2e)+' de los leads entra al canal, frente al '+pf(B.l2e)+' de media'};
+  if(c.cplm!==null && c.cplm > B.cplm*2 && c.leads>=5)
+    return{fase:'Captación',causa:'El lead sale muy caro comparado con la media',accion:'OPTIMIZAR',badge:'b-opt',conf:'media',
+      motivo:'coste por lead de '+ef(c.cplm)+' frente a '+ef(B.cplm)+' de media'};
+  if(c.entradas>=20 && c.pagadores===0)
+    return{fase:'Monetización',causa:'Trae suscriptores pero ninguno ha pagado todavía',accion:'VIGILAR',badge:'b-inv',conf:'media',
+      motivo:nf(c.entradas)+' entradas y 0 pagadores'};
+  if(c.roas!==null && c.roas>=1)
+    return{fase:'Sano',causa:'Devuelve más de lo que cuesta',accion:'ESCALAR',badge:'b-esc',conf:c.pagadores>=5?'alta':'baja',
+      motivo:'retorno de '+xf(c.roas)+' con '+nf(c.pagadores)+' pagadores'};
+  if(c.cpl!==null && c.cpl<=B.cpl)
+    return{fase:'En observación',causa:'Capta a buen precio pero aún no ha generado retorno',accion:'MANTENER',badge:'b-opt',conf:'media',
+      motivo:'CPL de '+ef(c.cpl)+' frente a '+ef(B.cpl)+' de media'};
+  return{fase:'Captación',causa:'Coste por entrada por encima de la media y sin retorno',accion:'OPTIMIZAR',badge:'b-opt',conf:'media',
+    motivo:'CPL de '+ef(c.cpl)+' frente a '+ef(B.cpl)+' de media'};
+}
+const ORD={'REVISAR YA':0,'PAUSAR':1,'INVESTIGAR':2,'REVISAR':3,'OPTIMIZAR':4,'VIGILAR':5,'MANTENER':6,'ESCALAR':7,'ESPERAR':8};
+
+function sufic(m){
+  const box=document.getElementById('suf');
+  const dias=[...new Set(F().map(r=>r.dia))].length;
+  const msg=[];
+  if(m.pagadores<10) msg.push(`Solo hay <b>${nf(m.pagadores)} pagadores</b> en todo el periodo. Cualquier cifra de retorno o ROAS se mueve por completo con una sola persona: úsala como indicio, nunca como criterio para mover presupuesto.`);
+  if(dias<14) msg.push(`El periodo cubre <b>${dias} días</b>. Las suscripciones son recurrentes y los pagos se acumulan con el tiempo, así que el retorno de una cohorte tan joven está necesariamente subestimado.`);
+  msg.push(`Los diagnósticos que <b>sí</b> se sostienen con estos datos son los de captación y conversión a canal, porque se basan en impresiones, leads y entradas, que sí tienen volumen (${nf(m.leads)} leads, ${nf(m.entradas)} entradas).`);
+  box.innerHTML='<h3>⚠ Hasta dónde llegan estos datos</h3><p>'+msg.join(' ')+'</p>';
+}
+
+function acciones(rows){
+  const B=bench(rows);
+  let C=grp(rows.filter(r=>r.grupo!==SIN),'grupo').map(c=>{
+    const r=rows.find(x=>x.grupo===c.k);
+    return{...c,tipster:r?r.tipster:'',pais:r?r.pais:'',d:diagnostica(c,B)}});
+  C.sort((a,b)=>ORD[a.d.accion]-ORD[b.d.accion]||b.gasto-a.gasto);
+  document.getElementById('acciones').innerHTML=C.slice(0,10).map(c=>`
+    <div class="act">
+      <div class="badge ${c.d.badge}">${c.d.accion}</div>
+      <div class="act-b"><h4><span class="dot" style="background:${TC[c.tipster]}"></span>${c.k}</h4>
+        <div class="ev">${c.d.causa}. <b>Evidencia:</b> ${c.d.motivo}. Inversión en juego: <b>${ef(c.gasto)}</b>.</div></div>
+      <div class="conf"><span class="cv c-${c.d.conf}">Confianza ${c.d.conf}</span>${nf(c.entradas)} entradas · ${nf(c.pagadores)} pagadores</div>
+    </div>`).join('');
+  // tabla diagnóstico
+  const T=document.getElementById('t-diag');
+  T.querySelector('thead').innerHTML='<tr><th>Conjunto</th><th>Tipster</th><th>Inversión</th><th>Leads</th><th>Entradas</th><th>Lead→Entrada</th><th>CPL</th><th>Pagadores</th><th>ROAS</th><th>Fase del problema</th><th>Acción</th></tr>';
+  T.querySelector('tbody').innerHTML=C.map(c=>`<tr>
+    <td class="nm">${c.k}</td><td><span class="dot" style="background:${TC[c.tipster]}"></span>${c.tipster}</td>
+    <td>${ef(c.gasto)}</td><td>${nf(c.leads)}</td><td>${nf(c.entradas)}</td>
+    <td>${c.l2e===null?'—':pf(c.l2e)+' '+(c.l2e>=B.l2e*0.8?SVG.ok:(c.l2e>=B.l2e*0.5?SVG.wa:SVG.ko))}</td>
+    <td>${c.cpl===null?'—':ef(c.cpl)+' '+(c.cpl<=B.cpl*1.25?SVG.ok:(c.cpl<=B.cpl*2.5?SVG.wa:SVG.ko))}</td>
+    <td>${nf(c.pagadores)}</td><td>${c.roas===null?'—':'<span class="'+(c.roas>=1?'pos':'neg')+'">'+xf(c.roas)+'</span>'}</td>
+    <td>${c.d.fase}</td><td><span class="badge ${c.d.badge}" style="min-width:0;padding:3px 8px;font-size:10px">${c.d.accion}</span></td></tr>`).join('');
+}
+
+/* ============ LIGA ============ */
+function liga(rows){
+  let L=grp(rows,'tipster');
+  const first={};rows.forEach(r=>{if(r.entradas>0&&(!first[r.tipster]||r.dia<first[r.tipster]))first[r.tipster]=r.dia});
+  L.forEach(l=>{l.desde=first[l.k]||'—';
+    l.ant=first[l.k]?Math.round((new Date(D_MAX)-new Date(first[l.k]))/864e5)+1:0});
+  const tot=met(sum(rows));
+  L.sort((a,b)=>{const k=SORT.liga;return typeof a[k]==='string'?DIR.liga*String(a[k]).localeCompare(b[k]):DIR.liga*((a[k]||0)-(b[k]||0))});
+  const cols=[['k','Tipster'],['gasto','Inversión'],['impresiones','Impresiones'],['leads','Leads Meta'],['entradas','Entradas'],
+    ['l2e','Lead→Entrada'],['cpl','CPL'],['bajas','Bajas'],['b24','% baja'],['pagadores','Pagadores'],['tasa','% paga'],
+    ['ingresos','Ingresos'],['ing_ent','Ing./entrada'],['roas','ROAS'],['ant','Días']];
+  const mx={};['gasto','entradas','impresiones'].forEach(k=>mx[k]=Math.max(...L.map(x=>x[k]||0)));
+  const T=document.getElementById('t-liga');
+  T.querySelector('thead').innerHTML='<tr>'+cols.map(c=>`<th data-k="${c[0]}">${c[1]}${SORT.liga===c[0]?(DIR.liga<0?' ▼':' ▲'):''}</th>`).join('')+'</tr>';
+  const F2=(c,v)=>{if(c==='k')return v;if(['gasto','cpl','ingresos','ing_ent'].includes(c))return v===null?'—':ef(v);
+    if(['l2e','b24','tasa'].includes(c))return v===null?'—':pf(v);if(c==='roas')return v===null?'—':xf(v);return nf(v)};
+  T.querySelector('tbody').innerHTML=L.map(l=>'<tr>'+cols.map(c=>{
+    if(c[0]==='k')return `<td><span class="dot" style="background:${TC[l.k]}"></span>${l.k}</td>`;
+    let v=F2(c[0],l[c[0]]);
+    if(mx[c[0]])v=`<span class="heat" style="${heat(l[c[0]],mx[c[0]],'127,219,232')}">${v}</span>`;
+    if(c[0]==='roas'&&l.roas!==null)v=`<span class="${l.roas>=1?'pos':'neg'}">${xf(l.roas)}</span>`;
+    return `<td>${v}</td>`}).join('')+'</tr>').join('');
+  T.querySelector('tfoot').innerHTML='<tr>'+cols.map(c=>c[0]==='k'?'<td>TOTAL</td>':(c[0]==='ant'?'<td>—</td>':`<td>${F2(c[0],tot[c[0]])}</td>`)).join('')+'</tr>';
+  T.querySelectorAll('thead th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
+    if(k===SORT.liga)DIR.liga*=-1;else{SORT.liga=k;DIR.liga=-1}render()});
+  // nota
+  const best=[...L].sort((a,b)=>(b.l2e||0)-(a.l2e||0))[0],worst=[...L].sort((a,b)=>(a.l2e||0)-(b.l2e||0))[0];
+  let n='';
+  if(L.length>1&&best.l2e&&worst.l2e&&best.l2e>worst.l2e*1.5)
+    n=`<b>La diferencia clave está antes del canal:</b> ${best.k} convierte el ${pf(best.l2e)} de sus leads en entradas y ${worst.k} solo el ${pf(worst.l2e)}. Con un coste por lead parecido, esa brecha se traslada entera al CPL (${ef(best.cpl)} frente a ${ef(worst.cpl)}).`;
+  const ants=L.map(l=>l.ant).filter(Boolean);
+  if(ants.length>1&&Math.max(...ants)-Math.min(...ants)>15)
+    n+=' <span style="color:#b07800">Aviso: hay más de 15 días de diferencia de antigüedad entre tipsters, así que su ROAS no es comparable directamente.</span>';
+  document.getElementById('liga-note').innerHTML=n;
+}
+
+/* ============ GRÁFICOS ============ */
+function mk(id,cfg){if(ch[id])ch[id].destroy();ch[id]=new Chart(document.getElementById(id),cfg)}
+function mapa(rows){
+  const lvl=MAPA;
+  let P=lvl==='tip'?grp(rows,'tipster'):grp(rows.filter(r=>r.grupo!==SIN),'grupo');
+  if(lvl!=='tip')P.forEach(p=>{const r=rows.find(x=>x.grupo===p.k);p.tipster=r?r.tipster:''});
+  P=P.filter(p=>p.cpl!==null&&p.gasto>0);
+  const mxg=Math.max(...P.map(p=>p.gasto),1);
+  const mxc=Math.max(...P.map(p=>p.cpl),1)*1.15;
+  const byT={};P.forEach(p=>{const t=lvl==='tip'?p.k:p.tipster;(byT[t]=byT[t]||[]).push(p)});
+  const ds=Object.entries(byT).map(([t,arr])=>({label:t,backgroundColor:TC[t]+'cc',borderColor:TC[t],
+    data:arr.map(p=>({x:p.cpl,y:p.ing_ent||0,r:5+Math.sqrt(p.gasto/mxg)*17,n:p.k,g:p.gasto,e:p.entradas}))}));
+  ds.push({label:'Punto de equilibrio',type:'line',data:[{x:0,y:0},{x:mxc,y:mxc}],borderColor:'#8fa0ba',
+    borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false});
+  mk('c-mapa',{type:'bubble',data:{datasets:ds},options:{responsive:true,
+    plugins:{legend:{position:'bottom',labels:{boxWidth:9,font:{size:10.5}}},
+      tooltip:{callbacks:{label:c=>c.raw.n?[c.raw.n,'CPL '+ef(c.raw.x),'Ingreso/entrada '+ef(c.raw.y),'Inversión '+ef(c.raw.g),nf(c.raw.e)+' entradas']:''}}},
+    scales:{x:{title:{display:true,text:'CPL — coste de traer a alguien (€)',font:{size:11}},grid:{color:'#eef2f8'},ticks:{font:{size:10},callback:v=>v+'€'},min:0},
+      y:{title:{display:true,text:'Ingreso por entrada (€)',font:{size:11}},grid:{color:'#eef2f8'},ticks:{font:{size:10},callback:v=>v+'€'},min:0}}}});
+}
+function retencion(){
+  const ts=[...new Set(RET.map(r=>r.tipster))].filter(t=>!ST.tip||t===ST.tip);
+  const xs=[...new Set(RET.map(r=>r.dias))].sort((a,b)=>a-b);
+  mk('c-ret',{type:'line',data:{labels:xs.map(x=>x<1?(x*24)+' h':x+' d'),
+    datasets:ts.map(t=>({label:t,data:xs.map(x=>{const r=RET.find(y=>y.tipster===t&&y.dias===x);return r?r.pct:null}),
+      borderColor:TC[t],backgroundColor:'transparent',tension:.25,borderWidth:2.5,pointRadius:3}))},
+   options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:9,font:{size:10.5}}},
+     tooltip:{callbacks:{label:c=>c.dataset.label+': '+pf(c.raw)+' sigue dentro'}}},
+   scales:{y:{min:0,max:100,grid:{color:'#eef2f8'},ticks:{font:{size:10},callback:v=>v+'%'}},
+     x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  const m=met(sum(F()));
+  document.getElementById('ret-note').innerHTML=`De ${nf(m.entradas)} entradas, <b>${nf(m.bajas)} se han dado de baja</b> (${pf(m.b24)}). El tramo de las primeras 24 horas es el que más informa: quien se va el mismo día suele indicar que el anuncio prometía algo distinto de lo que encontró en el canal.`;
+}
+function diario(rows){
+  const ds=[...new Set(rows.map(r=>r.dia))].sort();
+  const ts=[...new Set(rows.map(r=>r.tipster))];
+  const by={};ds.forEach(d=>by[d]=sum(rows.filter(r=>r.dia===d)));
+  mk('c-dia',{data:{labels:ds,datasets:[
+    ...ts.map(t=>({type:'bar',label:t,data:ds.map(d=>rows.filter(r=>r.dia===d&&r.tipster===t).reduce((a,r)=>a+r.entradas,0)),
+      backgroundColor:TC[t],stack:'e',yAxisID:'y'})),
+    {type:'line',label:'CPL (€)',data:ds.map(d=>dv(by[d].gasto,by[d].entradas)),borderColor:'#e5484d',
+      backgroundColor:'transparent',yAxisID:'y1',borderWidth:2.5,tension:.3,pointRadius:3}]},
+   options:{responsive:true,interaction:{mode:'index',intersect:false},
+     plugins:{legend:{position:'bottom',labels:{boxWidth:9,font:{size:10.5}}},
+       tooltip:{callbacks:{label:c=>c.dataset.label==='CPL (€)'?'CPL: '+(c.raw===null?'—':ef(c.raw)):c.dataset.label+': '+nf(c.raw)}}},
+     scales:{y:{stacked:true,position:'left',title:{display:true,text:'Entradas',font:{size:10.5}},grid:{color:'#eef2f8'},ticks:{font:{size:10}}},
+       y1:{position:'right',title:{display:true,text:'CPL (€)',font:{size:10.5}},grid:{display:false},ticks:{font:{size:10},callback:v=>v+'€'}},
+       x:{stacked:true,grid:{display:false},ticks:{font:{size:10}}}}}});
+}
+
+/* ============ TABLAS DETALLE ============ */
+function embudo(m){
+  const S=[['Impresiones',m.impresiones,'Meta'],['Clics en enlace',m.clics,'Meta'],['Visitas a landing',m.lpv,'Meta'],
+    ['Leads (Meta)',m.leads,'Meta'],['Entradas al canal',m.entradas,'PremiumPay'],
+    ['Siguen dentro',m.entradas-m.bajas,'PremiumPay'],['Pagadores',m.pagadores,'PremiumPay'],['Pagos',m.pagos,'PremiumPay']];
+  const mx=S[0][1]||1,T=document.getElementById('t-fun');
+  T.querySelector('thead').innerHTML='<tr><th>Etapa</th><th>Volumen</th><th>Conv. vs anterior</th><th>Se pierde</th><th>% sobre impresiones</th><th>Coste unitario</th><th>Origen</th></tr>';
+  T.querySelector('tbody').innerHTML=S.map((s,i)=>{const p=i?S[i-1][1]:null,cr=p?dv(s[1],p)*100:100,ls=p?p-s[1]:0;
+    return `<tr><td>${s[0]}</td><td><span class="heat" style="${heat(s[1],mx,'61,99,176')}">${nf(s[1])}</span></td>
+      <td>${cr===null?'—':pf(cr)+' '+(i?(cr>=60?SVG.ok:(cr>=25?SVG.wa:SVG.ko)):SVG.ok)}</td>
+      <td class="${ls>0?'neg':''}">${i?'−'+nf(ls):'—'}</td><td>${pf(dv(s[1],mx)*100)}</td>
+      <td>${s[1]?ef(dv(m.gasto,s[1])):'—'}</td><td style="color:#6b7a90">${s[2]}</td></tr>`}).join('');
+  T.querySelector('tfoot').innerHTML=`<tr><td>Resultado</td><td>${ef(m.ingresos)}</td><td colspan="3">${nf(m.pagos)} pagos${m.pagos?' · ticket '+ef(dv(m.ingresos,m.pagos)):''}</td><td>${m.pagos?ef(dv(m.gasto,m.pagos)):'—'}</td><td>ROAS ${m.roas===null?'—':xf(m.roas)}</td></tr>`;
+  const w=S.map((s,i)=>i&&S[i-1][1]?{n:s[0],p:S[i-1][0],cr:dv(s[1],S[i-1][1])*100}:null).filter(Boolean).sort((a,b)=>a.cr-b.cr)[0];
+  document.getElementById('fun-note').innerHTML=w?`<b>Mayor fuga:</b> «${w.p}» → «${w.n}», solo pasa el ${pf(w.cr)}. Las etapas de PremiumPay tienen fecha real salvo los pagos, que no llevan marca temporal y se imputan a la fecha de entrada del pagador.`:'';
+}
+function tabla(id,rows,keyf,label,extra){
+  const T=document.getElementById(id);
+  let data=grp(rows,keyf);
+  data.forEach(d=>{const r=rows.find(x=>x[keyf]===d.k);d.tipster=r?r.tipster:''});
+  const tot=met(sum(rows));
+  const cols=[['k',label],['gasto','Inversión'],['impresiones','Impr.'],['clics','Clics'],['ctr','CTR'],['leads','Leads'],
+    ['entradas','Entradas'],['l2e','Lead→Entr.'],['cpl','CPL'],['bajas','Bajas'],['pagadores','Pagadores'],
+    ['ingresos','Ingresos'],['roas','ROAS']];
+  const s=SORT[extra]||'gasto',dr=DIR[extra]||-1;
+  data.sort((a,b)=>{if(a.k===SIN)return 1;if(b.k===SIN)return -1;
+    return typeof a[s]==='string'?dr*String(a[s]).localeCompare(b[s]):dr*((a[s]||0)-(b[s]||0))});
+  const mx={};['gasto','entradas','impresiones'].forEach(k=>mx[k]=Math.max(...data.map(x=>x[k]||0)));
+  T.querySelector('thead').innerHTML='<tr>'+cols.map(c=>`<th data-k="${c[0]}">${c[1]}${s===c[0]?(dr<0?' ▼':' ▲'):''}</th>`).join('')+'</tr>';
+  const FM=(c,v)=>{if(['gasto','cpl','ingresos'].includes(c))return v===null?'—':ef(v);
+    if(['ctr','l2e'].includes(c))return v===null?'—':pf(v);if(c==='roas')return v===null?'—':xf(v);return nf(v)};
+  T.querySelector('tbody').innerHTML=data.map(d=>'<tr class="'+(d.k===SIN?'sin':'')+'">'+cols.map(c=>{
+    if(c[0]==='k')return `<td class="nm">${d.tipster&&!ST.tip?'<span class="dot" style="background:'+TC[d.tipster]+'"></span>':''}${d.k}</td>`;
+    let v=FM(c[0],d[c[0]]);
+    if(mx[c[0]])v=`<span class="heat" style="${heat(d[c[0]],mx[c[0]],'127,219,232')}">${v}</span>`;
+    if(c[0]==='roas'&&d.roas!==null)v=`<span class="${d.roas>=1?'pos':'neg'}">${xf(d.roas)}</span>`;
+    return `<td>${v}</td>`}).join('')+'</tr>').join('');
+  T.querySelector('tfoot').innerHTML='<tr>'+cols.map(c=>c[0]==='k'?`<td>TOTAL (${data.length})</td>`:`<td>${FM(c[0],tot[c[0]])}</td>`).join('')+'</tr>';
+  T.querySelectorAll('thead th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
+    if(k===SORT[extra])DIR[extra]*=-1;else{SORT[extra]=k;DIR[extra]=-1}render()});
+}
+function placement(){
+  const rows=PLAC.filter(r=>r.dia>=ST.from&&r.dia<=ST.to&&(!ST.tip||r.tipster===ST.tip));
+  const o={};rows.forEach(r=>{const k=r.placement;o[k]=o[k]||{k,gasto:0,impresiones:0,clics:0,lpv:0,leads:0};
+    o[k].gasto+=r.gasto_usd*FX;['impresiones','clics','lpv','leads'].forEach(x=>o[k][x]+=r[x]||0)});
+  let data=Object.values(o).sort((a,b)=>b.gasto-a.gasto);
+  const tot={k:'TOTAL',gasto:0,impresiones:0,clics:0,lpv:0,leads:0};
+  data.forEach(d=>{tot.gasto+=d.gasto;['impresiones','clics','lpv','leads'].forEach(x=>tot[x]+=d[x])});
+  const T=document.getElementById('t-plac'),mx=Math.max(...data.map(d=>d.impresiones));
+  T.querySelector('thead').innerHTML='<tr><th>Ubicación</th><th>Inversión</th><th>Impresiones</th><th>Clics</th><th>CTR</th><th>Visitas landing</th><th>Leads</th><th>Coste/lead Meta</th><th>CPM</th><th>% inversión</th></tr>';
+  T.querySelector('tbody').innerHTML=data.map(d=>`<tr><td>${d.k}</td><td>${ef(d.gasto)}</td>
+    <td><span class="heat" style="${heat(d.impresiones,mx,'127,224,176')}">${nf(d.impresiones)}</span></td>
+    <td>${nf(d.clics)}</td><td>${pf(dv(d.clics,d.impresiones)*100)}</td><td>${nf(d.lpv)}</td><td>${nf(d.leads)}</td>
+    <td>${d.leads?ef(dv(d.gasto,d.leads)):'—'}</td><td>${ef(dv(d.gasto,d.impresiones)*1000)}</td>
+    <td>${pf(dv(d.gasto,tot.gasto)*100)}</td></tr>`).join('');
+  T.querySelector('tfoot').innerHTML=`<tr><td>TOTAL</td><td>${ef(tot.gasto)}</td><td>${nf(tot.impresiones)}</td><td>${nf(tot.clics)}</td>
+    <td>${pf(dv(tot.clics,tot.impresiones)*100)}</td><td>${nf(tot.lpv)}</td><td>${nf(tot.leads)}</td>
+    <td>${ef(dv(tot.gasto,tot.leads))}</td><td>${ef(dv(tot.gasto,tot.impresiones)*1000)}</td><td>100,00 %</td></tr>`;
+}
+
+/* ============ CIERRE ============ */
+// --- semanas ISO (lunes a domingo), en UTC para evitar desfases de zona horaria ---
+function addDias(iso,n){const t=new Date(iso+'T12:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)}
+function lunes(iso){const t=new Date(iso+'T12:00:00Z');return addDias(iso,-((t.getUTCDay()+6)%7))}
+function domingo(iso){return addDias(lunes(iso),6)}
+function etiqSem(l){const f=x=>x.slice(8,10)+'/'+x.slice(5,7);return f(l)+' – '+f(domingo(l))}
+function semanas(){const s=new Set();D.forEach(r=>s.add(lunes(r.dia)));return [...s].sort().reverse()}
+function cmRango(){
+  if(CMP==='semana'&&CMS)return[CMS,domingo(CMS)];
+  if(CMP==='mes'){const m=(ST.to||D_MAX).slice(0,7);return[m+'-01',m+'-31']}
+  return[ST.from,ST.to];
+}
+function cierre(){
+  const [cf,ct]=cmRango();
+  const rows=D.filter(r=>r.dia>=cf&&r.dia<=ct&&(!ST.tip||r.tipster===ST.tip)&&(!ST.pais||r.pais===ST.pais));
+  const key=r=>CMG==='tipster'?r.tipster:(CMG==='pais'?(r.pais||'—'):r.grupo);
+  const o={};
+  rows.forEach(r=>{const isSin=r.grupo===SIN;const k=isSin&&CMG!=='conj'?'Genérico (sin conjunto)':key(r);
+    o[k]=o[k]||{k,gasto:0,entradas:0,ingresos:0,sin:isSin};
+    o[k].gasto+=(r.gasto_usd||0)*FX;o[k].entradas+=r.entradas;o[k].ingresos+=r.ingresos});
+  let data=Object.values(o).sort((a,b)=>a.sin?1:b.sin?-1:b.gasto-a.gasto);
+  const tot=data.reduce((a,r)=>({gasto:a.gasto+r.gasto,entradas:a.entradas+r.entradas,ingresos:a.ingresos+r.ingresos}),{gasto:0,entradas:0,ingresos:0});
+  const H=[CMG==='tipster'?'Tipster':(CMG==='pais'?'País':'Conjunto'),'Inversión (€)','Entradas','CPL (€)','Ventas (€)','Retorno'];
+  const T=document.getElementById('cm-t'),r2=n=>(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  T.querySelector('thead').innerHTML='<tr>'+H.map(h=>`<th>${h}</th>`).join('')+'</tr>';
+  T.querySelector('tbody').innerHTML=data.map(d=>`<tr class="${d.sin?'sin':''}"><td>${d.k}</td>
+    <td>${r2(d.gasto)} €</td><td>${nf(d.entradas)}</td>
+    <td>${d.gasto&&d.entradas?r2(d.gasto/d.entradas)+' €':'—'}</td>
+    <td>${r2(d.ingresos)} €</td><td>${d.gasto?r2(d.ingresos/d.gasto):'—'}</td></tr>`).join('');
+  T.querySelector('tfoot').innerHTML=`<tr><td>TOTAL</td><td>${r2(tot.gasto)} €</td><td>${nf(tot.entradas)}</td>
+    <td>${r2(dv(tot.gasto,tot.entradas))} €</td><td>${r2(tot.ingresos)} €</td><td>${r2(dv(tot.ingresos,tot.gasto))}</td></tr>`;
+  const et=CMP==='semana'&&CMS?`Semana del ${etiqSem(CMS)} (${cf} a ${ct})`:(CMP==='mes'?`Mes de ${ct.slice(0,7)}`:`Periodo ${cf} a ${ct}`);
+  document.getElementById('cm-h').textContent=CMP==='semana'?'Cierre de semana':(CMP==='mes'?'Cierre de mes':'Cierre del periodo');
+  document.getElementById('cm-sub').textContent=et+' · cohorte por fecha de entrada';
+  document.getElementById('cm-fx').textContent=`Inversión convertida de USD a EUR al tipo 1 USD = ${FX.toLocaleString('es-ES',{minimumFractionDigits:4})} EUR (${DATA.fx_fuente}, ${DATA.fx_fecha}).`;
+  window.__cm={data,tot,H,et,cf,ct};
+}
+function cmExp(kind){const {data,tot,H,et,cf,ct}=window.__cm,r2=n=>(n||0).toFixed(2).replace('.',',');
+  const nom='cierre_'+(CMP==='semana'?'semana_'+cf:(CMP==='mes'?ct.slice(0,7):cf+'_'+ct));
+  if(kind==='json'){const j={title:'Cierre '+et,output:'/mnt/user-data/outputs/'+nom+'.xlsx',normalize:{},
+    periodo:{desde:cf,hasta:ct},fx:{usd_eur:FX,fecha:DATA.fx_fecha},
+    rows:data.map(d=>({tipster:d.k,pais:d.k,gasto:+d.gasto.toFixed(2),entradas:d.entradas,ventas:+d.ingresos.toFixed(2)}))};
+    dl(nom+'.json',JSON.stringify(j,null,2),'application/json');return}
+  const sep=kind==='csv'?';':'\t',L=[et,H.join(sep)];
+  data.forEach(d=>L.push([d.k,r2(d.gasto),d.entradas,d.entradas?r2(d.gasto/d.entradas):'',r2(d.ingresos),d.gasto?r2(d.ingresos/d.gasto):''].join(sep)));
+  L.push(['TOTAL',r2(tot.gasto),tot.entradas,r2(dv(tot.gasto,tot.entradas)),r2(tot.ingresos),r2(dv(tot.ingresos,tot.gasto))].join(sep));
+  const t=L.join('\n');
+  if(kind==='csv')dl(nom+'.csv','\ufeff'+t,'text/csv');
+  else navigator.clipboard.writeText(t).then(()=>{const b=document.getElementById('cm-copy'),o=b.textContent;b.textContent='✓ Copiado';setTimeout(()=>b.textContent=o,1500)});
+}
+function dl(n,c,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:m}));a.download=n;document.body.appendChild(a);a.click();a.remove()}
+
+/* ============ RENDER ============ */
+function render(){
+  const rows=F(),m=met(sum(rows));
+  sufic(m);acciones(rows);liga(rows);mapa(rows);retencion();diario(rows);
+  embudo(m);tabla('t-conj',rows,'grupo','Conjunto de anuncios','conj');placement();
+  tabla('t-dia',rows,'dia','Fecha','dia');cierre();
+  document.getElementById('sub').innerHTML=`Meta ${DATA.rango_meta[0]} a ${DATA.rango_meta[1]} (USD) · PremiumPay ${DATA.rango_pp[0]} a ${DATA.rango_pp[1]} (EUR) · ${TIPS.length} tipsters · inversión ${ef(m.gasto)}`;
+  document.getElementById('fxinfo').textContent=`${DATA.fx_fuente}, ${DATA.fx_fecha}`;
+}
+function alerts(){
+  let h='<h3>⚠ Avisos de integración y cómo leer estos datos</h3><ul>';
+  h+=`<li><b>Moneda.</b> Meta factura en USD y PremiumPay en EUR. Toda la inversión se convierte a euros al tipo <code>1 USD = ${FX.toLocaleString('es-ES',{minimumFractionDigits:4})} EUR</code> (${DATA.fx_fuente}, ${DATA.fx_fecha}), editable en la cabecera. Los ingresos ya vienen en euros y no se convierten.</li>`;
+  h+=`<li><b>Emparejamiento por clave estructurada.</b> Los nombres se descomponen en campos separados por guion bajo y se ignoran los tokens de relleno (<code>PRO</code>, <code>INTERESES</code>) y los de mes (<code>AGO2026</code>). Así casan <code>T.VERDE_ESP_PRO_INTERESES_INTERESES_APU_IG-FB</code> con <code>T.VERDE_ESP_APU_IG-FB</code>, que por similitud de texto se quedaban fuera. El emparejamiento se hace siempre dentro del mismo tipster: ${DATA.colisiones} claves aparecen en más de un tipster.</li>`;
+  h+=`<li><b>Los agregados de enlace de PremiumPay son de por vida, no del periodo.</b> El endpoint devuelve por enlace ${nf(115)} pagos y ${ef(1248.58)}, pero eso incluye cobros de marzo. El detalle por suscriptor filtrado al periodo da ${nf(CU.pagos)} pagos y ${ef(CU.ingresos)}. El dashboard usa el detalle por suscriptor: mezclarlos multiplicaría los ingresos por 16.</li>`;
+  h+=`<li><b>Los pagos no tienen fecha.</b> Se imputan a la fecha de entrada del suscriptor que pagó. Es lo correcto para medir publicidad, pero no es caja del día.</li>`;
+  h+=`<li><b>Ventanas desalineadas.</b> Meta cubre ${DATA.rango_meta[0]} a ${DATA.rango_meta[1]} y PremiumPay ${DATA.rango_pp[0]} a ${DATA.rango_pp[1]}. Hay días con inversión y sin entradas registradas, y al revés.</li>`;
+  const g1=AVI.filter(a=>a.tipo.startsWith('Conjunto'));
+  if(g1.length)h+=`<li><b>Conjuntos de Meta sin enlace en PremiumPay (${g1.length}).</b> Su inversión cuenta pero sus entradas no se pueden atribuir, lo que empeora artificialmente el CPL del tipster: ${g1.map(a=>`<code>${a.valor}</code> (${a.detalle})`).join(', ')}.</li>`;
+  const g2=AVI.filter(a=>a.tipo.startsWith('Enlace'));
+  if(g2.length)h+=`<li><b>Enlaces sin conjunto en Meta (${g2.length}).</b> Suman entradas sin inversión y van en la fila «Genérico»: ${g2.map(a=>`<code>${a.valor}</code> (${a.detalle})`).join(', ')}.</li>`;
+  if(OTROS.length)h+=`<li><b>Otros tipsters en el export de Meta sin datos de PremiumPay (${OTROS.length}).</b> Están excluidos del dashboard porque no se les puede medir el resultado: ${OTROS.map(o=>`${o.tipster} (${ef(o.gasto_eur)}, ${o.leads} leads)`).join(', ')}. Suman ${ef(OTROS.reduce((a,o)=>a+o.gasto_eur,0))} de inversión sin seguimiento.</li>`;
+  h+=`<li><b>Ubicación.</b> Este export sí trae desglose por ubicación (Feed, Reels, Stories), pero solo aplica a las métricas de Meta: las entradas al canal no tienen ubicación porque se registran en el enlace.</li>`;
+  h+='</ul>';
+  document.getElementById('alerts').innerHTML=h;
+  document.getElementById('foot').innerHTML=`Cuadre verificado: ${nf(CU.entradas)} entradas, ${nf(CU.pagos)} pagos, ${ef(CU.ingresos)} · inversión ${CU.gasto_usd.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})} USD`;
+}
+function init(){
+  const f=document.getElementById('f-from'),t=document.getElementById('f-to');
+  f.min=t.min=D_MIN;f.max=t.max=D_MAX;f.value=D_MIN;t.value=D_MAX;
+  TIPS.forEach(x=>document.getElementById('f-tip').add(new Option(x,x)));
+  [...new Set(D.map(r=>r.pais))].filter(x=>x&&x!=='—').sort().forEach(x=>document.getElementById('f-pais').add(new Option(x,x)));
+  const fx=document.getElementById('fx');fx.value=FX;
+  fx.onchange=e=>{const v=parseFloat(e.target.value);if(v>0.1&&v<2){FX=v;render()}else e.target.value=FX};
+  f.onchange=e=>{ST.from=e.target.value;render()};
+  t.onchange=e=>{ST.to=e.target.value;render()};
+  document.getElementById('f-tip').onchange=e=>{ST.tip=e.target.value;render()};
+  document.getElementById('f-pais').onchange=e=>{ST.pais=e.target.value;render()};
+  document.getElementById('f-reset').onclick=()=>{ST={from:D_MIN,to:D_MAX,tip:'',pais:''};
+    f.value=D_MIN;t.value=D_MAX;document.getElementById('f-tip').value='';document.getElementById('f-pais').value='';render()};
+  const P=(id,arr,cur,cb)=>{const el=document.getElementById(id);
+    el.innerHTML=arr.map(x=>`<button class="pill ${x[1]===cur?'on':''}" data-v="${x[1]}">${x[0]}</button>`).join('');
+    el.querySelectorAll('.pill').forEach(b=>b.onclick=()=>{el.querySelectorAll('.pill').forEach(y=>y.classList.remove('on'));
+      b.classList.add('on');cb(b.dataset.v);render()})};
+  P('p-liga',[['Inversión','gasto'],['CPL','cpl'],['Entradas','entradas'],['Lead→Entrada','l2e'],['ROAS','roas']],'gasto',v=>{SORT.liga=v;DIR.liga=-1});
+  P('p-conj',[['Inversión','gasto'],['CPL','cpl'],['Entradas','entradas'],['Lead→Entrada','l2e'],['ROAS','roas']],'gasto',v=>{SORT.conj=v;DIR.conj=-1});
+  P('p-mapa',[['Por conjunto','conj'],['Por tipster','tip']],'conj',v=>MAPA=v);
+  P('cm-grp',[['Tipster','tipster'],['País','pais'],['Conjunto','conj']],'tipster',v=>CMG=v);
+  const SM=semanas(), selS=document.getElementById('cm-sem');
+  selS.innerHTML=SM.map((l,i)=>`<option value="${l}">${etiqSem(l)}${i===0?' (actual)':''}</option>`).join('');
+  if(SM.length)CMS=SM[0];
+  selS.onchange=e=>{CMS=e.target.value;render()};
+  P('cm-per',[['Rango del filtro','rango'],['Semana','semana'],['Mes','mes']],'rango',v=>{
+    CMP=v; selS.style.display=v==='semana'?'':'none';});
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+    document.getElementById(b.dataset.p).classList.add('on')});
+  document.getElementById('cm-copy').onclick=()=>cmExp('copy');
+  document.getElementById('cm-csv').onclick=()=>cmExp('csv');
+  document.getElementById('cm-json').onclick=()=>cmExp('json');
+  alerts();render();
+}
+(async()=>{
+  try{
+    const r=await fetch('data.json?v='+Date.now());
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    DATA=await r.json();bind();init();
+  }catch(e){
+    document.querySelector('.wrap').innerHTML=
+     '<div style="background:#fff;border-radius:14px;padding:40px;text-align:center;max-width:600px;margin:60px auto;box-shadow:0 1px 3px rgba(20,40,80,.1)">'+
+     '<h2 style="color:#1e3a6e;margin-bottom:12px">No se ha podido cargar data.json</h2>'+
+     '<p style="color:#6b7a90;line-height:1.7">Este panel necesita el archivo <code>data.json</code> en la misma carpeta.<br><br>'+
+     'Si lo estás abriendo con doble clic desde tu ordenador, el navegador lo bloquea por seguridad. '+
+     'Ejecuta en esa carpeta:<br><code style="background:#f4f6fa;padding:4px 8px;border-radius:4px;display:inline-block;margin-top:8px">python3 -m http.server 8000</code><br>'+
+     'y abre <b>http://localhost:8000</b><br><br><small style="color:#c8353a">Detalle: '+e.message+'</small></p></div>';
+  }
+})();
+</script>
+</body></html>
