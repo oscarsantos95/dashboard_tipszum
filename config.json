@@ -1,51 +1,41 @@
 {
   "version": 1,
   "actualizado": "2026-08-18",
-  "kpi_principal": "cpl",
-  "objetivos_globales": {
-    "cpl_objetivo_eur": null,
-    "cpc_max_eur": null,
-    "ctr_min_pct": null,
-    "lead_entrada_min_pct": null,
-    "cac_max_eur": null
-  },
-  "objetivos_por_tipster": {
-    "T.VERDE": {
-      "cpl_objetivo_eur": null,
-      "nota": ""
-    },
-    "T.GREEN": {
-      "cpl_objetivo_eur": null,
-      "nota": ""
-    },
-    "A10-DEPORTES": {
-      "cpl_objetivo_eur": null,
-      "nota": ""
-    }
-  },
-  "umbral_decision": {
-    "gasto_min_eur": 30,
-    "entradas_min": 10,
-    "dias_min": 3,
-    "ventana_inactividad_dias": 3
-  },
-  "estados_manuales": {
-    "EJEMPLO_CONJUNTO_CLAVE": {
-      "estado": "TESTING",
-      "hasta": "2026-08-31",
-      "owner": "Oscar",
-      "nota": "audiencia broad en aprendizaje"
-    }
-  },
   "equipo": [
-    "Oscar",
-    "Pablo",
-    "Sofía",
     "Ana",
-    "Pato"
+    "Sofía",
+    "Dario",
+    "Oscar",
+    "Pablo"
   ],
   "sheet": {
     "url": "",
     "activo": false
-  }
+  },
+  "objetivos": {},
+  "presupuestos": {},
+  "umbral": {
+    "gasto_min_eur": 25,
+    "entradas_min": 10,
+    "dias_min": 3,
+    "inactividad_dias": 3,
+    "escalar_pct": 75,
+    "optimizar_pct": 125,
+    "pausar_pct": 200,
+    "pagadores_min": 10
+  },
+  "kpi_principal": "cpl",
+  "estados": {},
+  "_prefijos": [
+    "A10-DEPORTES",
+    "ALON",
+    "IDALLSPORTS",
+    "JAVIESPORTS",
+    "RGANALISTA",
+    "T.VERDE",
+    "T.GREEN",
+    "POWER",
+    "SB",
+    "COE"
+  ]
 }
