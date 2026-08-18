@@ -600,6 +600,7 @@ function frescura(){
   if(TOT&&TOT.pct_atribuible<80)h.push(`<div class="warnbox"><h3>Sólo el ${TOT.pct_atribuible}% de la inversión es atribuible</h3><p>Se están midiendo <b>${ef(TOT.gasto_atribuible_eur)}</b> de un total real de <b>${ef(TOT.gasto_total_eur)}</b>. Los ${ef(TOT.gasto_otros_eur)} restantes son tipsters sin canal en PremiumPay: aparecen en el gasto de Meta pero ninguna entrada les cuenta. Todo el CPL de este panel se refiere sólo a la parte medible.</p></div>`);
   const nPag=CU.pagos||0;
   if((CU.pagadores||nPag)<CFG.umbral.pagadores_min)h.push(`<div class="warnbox"><h3>Retorno todavía no interpretable</h3><p>Hay <b>${nf(nPag)} pagos</b> en todo el periodo. El ROAS se mueve por completo con una persona, así que aquí se usa como indicio y nunca como motivo para mover presupuesto. Las decisiones se toman sobre <b>CPL</b>.</p></div>`);
+  h.push(avisoRechazos());
   h.push(avisoPacing());
   box.innerHTML=h.filter(Boolean).join('');
 }
@@ -821,6 +822,8 @@ function ficha(){
   document.getElementById('ad-sub').innerHTML=`${esc(r0.tipster||'')} · ${esc(r0.pais||'—')} · <span class="chip ${est.chip}">${esc(est.txt)}</span>`;
   document.getElementById('ad-meta').innerHTML=
     (m.campana&&m.campana.length?`<span class="pill">Campaña: ${esc(m.campana.join(', '))}</span>`:'')+
+    (m.anuncios?`<span class="pill">${m.anuncios} anuncios</span>`:'')+
+    (m.rechazados&&m.rechazados.length?`<span class="pill" style="background:#f6e4e5;border-color:#e0b6b8;color:#8e2226;font-weight:700">${m.rechazados.length} rechazados por Meta</span>`:'')+
     (m.adsets&&m.adsets.length>1?`<span class="pill">${m.adsets.length} conjuntos con esta clave</span>`:'')+
     (m.frecuencia?`<span class="pill">Frecuencia máx. ${m.frecuencia.toFixed(2)}×</span>`:'')+
     `<button class="pill" id="ad-clear">Quitar filtro</button>`;
@@ -842,7 +845,8 @@ function ficha(){
   document.getElementById('ad-note').innerHTML=
     `Las columnas de 7 y 30 días se cuentan hacia atrás desde <b>${ult}</b>, el último día con datos, y no dependen del filtro de fechas. La columna «Periodo filtrado» sí. `+
     (card.d?`Decisión actual: <b>${esc(card.d.accion)}</b> — ${esc(card.d.causa)}, ${esc(card.d.motivo)}.`:'')+
-    (est.nota?` Nota del equipo: «${esc(est.nota)}»${est.owner?' — '+esc(est.owner):''}.`:'');
+    (est.nota?` Nota del equipo: «${esc(est.nota)}»${est.owner?' — '+esc(est.owner):''}.`:'')+
+    (m.rechazados&&m.rechazados.length?`<br><b>Anuncios rechazados por Meta:</b> ${m.rechazados.map(esc).join(', ')}. Mientras sigan rechazados el conjunto entrega peor: no interpretes el CPL como un problema de audiencia o de puja.`:'');
 
   // gráfico y tabla diaria del conjunto
   const dias=[];for(let d=ST.from;d<=ST.to;d=addD(d,1))dias.push(d);
@@ -1089,6 +1093,21 @@ function out(o) {
   return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
 }</pre>`;
+
+/* anuncios rechazados por Meta: gastan hasta que los rechazan y luego el conjunto
+   entrega peor. No es un problema de rendimiento, es de moderación. */
+function avisoRechazos(){
+  const L=[];
+  Object.entries(MG).forEach(([g,m])=>{
+    if(m.rechazados&&m.rechazados.length)L.push({g,n:m.rechazados.length,act:estadoDe(g).activo});
+  });
+  if(!L.length)return '';
+  const tot=L.reduce((a,x)=>a+x.n,0);
+  const viv=L.filter(x=>x.act);
+  return `<div class="warnbox"><h3>${tot} anuncios rechazados por Meta en ${L.length} conjuntos</h3>
+    <p>${viv.length?`<b>${viv.length} de esos conjuntos siguen activos</b>: ${viv.slice(0,6).map(x=>esc(x.g)+' ('+x.n+')').join(', ')}${viv.length>6?'…':''}. Un conjunto con anuncios rechazados entrega peor y su CPL empeora por moderación, no por rendimiento — revisa el rechazo antes de tocar la puja o el presupuesto.`:'Ninguno está activo ahora mismo, así que no urge.'}
+    Los anuncios rechazados de cada conjunto salen en su ficha.</p></div>`;
+}
 
 /* ═══════════════════ PRESUPUESTO Y RITMO ═══════════════════ */
 /* El presupuesto es mensual y por tipster, en euros. El gasto de Meta llega en dólares
