@@ -68,6 +68,7 @@ button.rst{padding:8px 14px;border:0;border-radius:7px;background:#5b83d6;color:
 .chip{display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:5px;letter-spacing:.3px}
 .ch-act{background:#e2f7ec;color:#0f6b41}.ch-pau{background:#f6e4e5;color:#8e2226}
 .ch-tst{background:#e6efff;color:#2b4d94}.ch-dor{background:#eef1f6;color:#6b7a90}.ch-arc{background:#eceaf5;color:#5b4b8a}
+.ch-nod{background:#fdf0dc;color:#8a5a00}
 .link{color:var(--acc);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 details.fold{margin-top:10px}
 details.fold summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--ink2);padding:7px 0;list-style:none}
@@ -137,7 +138,7 @@ footer{text-align:center;font-size:11.5px;color:var(--ink2);padding:18px 0 8px}
     <div class="fg"><label>País</label><select id="f-pais"><option value="">Todos</option></select></div>
     <div class="fg"><label>Conjunto</label><select id="f-conj" class="wide"><option value="">Todos</option></select></div>
     <div class="fg"><label>Estado</label><select id="f-est">
-      <option value="act">Solo activos</option><option value="all">Todos</option><option value="off">Solo parados</option></select></div>
+      <option value="act">Solo activos</option><option value="all">Todos</option><option value="nod">Solo «no entrega»</option><option value="off">Solo parados</option></select></div>
     <div class="fg"><label>Quién eres</label><select id="f-who"></select></div>
     <div class="fg"><label>&nbsp;</label><button class="rst" id="f-reset">Restablecer</button></div>
     <div class="fg"><label>&nbsp;</label><div class="fx">
@@ -482,6 +483,25 @@ function estadoDe(g){
     }
   }
   const m=MG[g];
+  /* estado_meta es el valor crudo de la columna "Ad set delivery" de Meta.
+     Se lee directo: el campo derivado "estado" del pipeline colapsaba todo a ACTIVO. */
+  const EM=(m&&m.estado_meta)?m.estado_meta.map(x=>String(x).toLowerCase()):[];
+  if(EM.length){
+    const tiene=v=>EM.includes(v), mix=EM.length>1?' (parcial)':'';
+    if(tiene('active'))
+      return{cod:'ACT',txt:'Activo en Meta'+mix,chip:'ch-act',activo:true,fuente:'meta',raw:EM};
+    if(tiene('not_delivering'))
+      return{cod:'NOD',txt:'No entrega',chip:'ch-nod',activo:false,fuente:'meta',raw:EM};
+    if(tiene('inactive')||tiene('adset_paused')||tiene('campaign_paused')||tiene('paused'))
+      return{cod:'PAU',txt:'Pausado en Meta',chip:'ch-pau',activo:false,fuente:'meta',raw:EM};
+    if(tiene('archived')||tiene('deleted'))
+      return{cod:'ARC',txt:'Archivado en Meta',chip:'ch-arc',activo:false,fuente:'meta',raw:EM};
+    if(tiene('pending_review'))
+      return{cod:'TST',txt:'En revisión',chip:'ch-tst',activo:true,fuente:'meta',raw:EM};
+    if(tiene('rejected')||tiene('recently_rejected'))
+      return{cod:'REJ',txt:'Rechazado',chip:'ch-pau',activo:false,fuente:'meta',raw:EM};
+    return{cod:'PAU',txt:EM[0],chip:'ch-dor',activo:false,fuente:'meta',raw:EM};
+  }
   if(m&&m.estado)return m.estado==='ACTIVO'
     ?{cod:'ACT',txt:'Activo en Meta',chip:'ch-act',activo:true,fuente:'meta'}
     :{cod:'PAU',txt:'Pausado en Meta',chip:'ch-pau',activo:false,fuente:'meta'};
@@ -788,9 +808,12 @@ function diario(rows){
   const dias=[...new Set(rows.map(r=>r.dia))].sort();
   const ts=ST.tip?[ST.tip]:TIPS;
   const ds=ts.map(t=>({label:t,type:'bar',data:dias.map(d=>rows.filter(r=>r.dia===d&&r.tipster===t).reduce((a,r)=>a+r.entradas,0)),
-    backgroundColor:TC[t],stack:'e',yAxisID:'y'}));
+    backgroundColor:TC[t],stack:'e',yAxisID:'y',order:2}));
+  /* order:0 = se dibuja el ultimo => la linea queda POR DELANTE de las barras (Chart.js v4) */
   ds.push({label:'CPL',type:'line',data:dias.map(d=>{const m=met(sum(rows.filter(r=>r.dia===d)));return m.cpl}),
-    borderColor:'#c8353a',backgroundColor:'transparent',yAxisID:'y1',tension:.25,pointRadius:2,spanGaps:true});
+    borderColor:'#c8353a',backgroundColor:'transparent',yAxisID:'y1',tension:.25,
+    borderWidth:3,pointRadius:3,pointBackgroundColor:'#c8353a',pointBorderColor:'#fff',pointBorderWidth:1.5,
+    spanGaps:true,order:0,z:10});
   draw('c-dia','bar',{labels:dias,datasets:ds},{plugins:{legend:{position:'bottom',labels:{boxWidth:11,font:{size:11}}}},
     scales:{y:{stacked:true,title:{display:true,text:'Entradas'}},
       y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'CPL (€)'}},x:{stacked:true}}});
@@ -852,12 +875,13 @@ function ficha(){
   const dias=[];for(let d=ST.from;d<=ST.to;d=addD(d,1))dias.push(d);
   const porDia=d=>met(sum(todo.filter(r=>r.dia===d)));
   const M=dias.map(porDia);
-  const ds=[{label:'Inversión (€)',type:'bar',data:M.map(x=>x.gasto),backgroundColor:'#3d63b0aa',yAxisID:'y'},
-    {label:'Entradas',type:'bar',data:M.map(x=>x.entradas),backgroundColor:'#22b573aa',yAxisID:'y'},
+  const ds=[{label:'Inversión (€)',type:'bar',data:M.map(x=>x.gasto),backgroundColor:'#3d63b0aa',yAxisID:'y',order:3},
+    {label:'Entradas',type:'bar',data:M.map(x=>x.entradas),backgroundColor:'#22b573aa',yAxisID:'y',order:3},
     {label:'CPL (€)',type:'line',data:M.map(x=>x.cpl),borderColor:'#c8353a',backgroundColor:'transparent',
-      yAxisID:'y1',tension:.25,pointRadius:2,spanGaps:true}];
+      yAxisID:'y1',tension:.25,borderWidth:3,pointRadius:3,pointBackgroundColor:'#c8353a',
+      pointBorderColor:'#fff',pointBorderWidth:1.5,spanGaps:true,order:0,z:10}];
   if(T)ds.push({label:'CPL objetivo',type:'line',data:dias.map(()=>T),borderColor:'#8fa0ba',borderDash:[6,4],
-    pointRadius:0,yAxisID:'y1',fill:false});
+    pointRadius:0,yAxisID:'y1',fill:false,order:1,z:9});
   draw('c-ad','bar',{labels:dias,datasets:ds},{plugins:{legend:{position:'bottom',labels:{boxWidth:11,font:{size:11}}}},
     scales:{y:{title:{display:true,text:'Inversión / entradas'}},
       y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'CPL (€)'}}}});
@@ -1289,10 +1313,11 @@ function syncFiltros(){
 function llenarConj(){
   const sel=document.getElementById('f-conj');
   let gs=[...new Set(D.filter(r=>(!ST.tip||r.tipster===ST.tip)&&(!ST.pais||r.pais===ST.pais)&&r.grupo!==SIN).map(r=>r.grupo))].sort();
-  if(ST.est!=='all')gs=gs.filter(g=>{const e=estadoDe(g);return ST.est==='act'?e.activo:!e.activo});
+  if(ST.est!=='all')gs=gs.filter(g=>{const e=estadoDe(g);
+    return ST.est==='act'?e.activo:(ST.est==='nod'?e.cod==='NOD':!e.activo)});
   if(ST.conj&&!gs.includes(ST.conj))gs.unshift(ST.conj);
   sel.innerHTML='<option value="">Todos</option>'+gs.map(g=>{
-    const e=estadoDe(g);return `<option value="${esc(g)}">${esc(g)}${e.activo?'':' · parado'}</option>`}).join('');
+    const e=estadoDe(g);return `<option value="${esc(g)}">${esc(g)}${e.activo?'':' · '+e.txt.toLowerCase()}</option>`}).join('');
 }
 function init(){
   document.getElementById('tabs').innerHTML=TABS.map((t,i)=>`<button class="tab${i?'':' on'}">${t}</button>`).join('');
