@@ -349,7 +349,9 @@ tbody tr.lowdata td{background:#fffdf5}
   </div>
   <div class="card">
     <div class="chead"><div class="ctitle"><div class="cicon" style="background:#00acc1">▧</div>
-      <div><h3>Ubicaciones</h3><small>Sólo métricas de Meta: las entradas no tienen ubicación, viven en el enlace</small></div></div></div>
+      <div><h3>Ubicaciones</h3><small>Sólo métricas de Meta: las entradas no tienen ubicación, viven en el enlace</small></div></div>
+      <div><div class="mini" style="margin-bottom:4px">Ver</div><div class="pills" id="plac-vista"></div></div></div>
+    <div id="plac-aviso"></div>
     <div class="tw"><table id="t-plac"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
     <div class="note" id="plac-note"></div>
   </div>
@@ -426,6 +428,7 @@ tbody tr.lowdata td{background:#fffdf5}
 /* ═══════════════════ ESTADO GLOBAL ═══════════════════ */
 let DATA=null,CFG=null,LOG=[];
 let D,PLAC,RET,AVI,OTROS,OTD,SIN,NOM,CU,MG,TOT,D_MIN,D_MAX,FX,TIPS;
+let PEND=[],PENDF='',PG={},PT={},HAYPEND=false;   // cola de aprobación de PremiumPay
 let BUDMES='';
 const PAL=['#3d63b0','#22b573','#f5a623','#c8353a','#7e57c2','#00acc1','#8d6e63','#546e7a','#d81b60','#43a047','#5e35b1','#00897b','#6d4c41','#ad1457','#1565c0'];
 const TC={};
@@ -434,7 +437,7 @@ let ST={from:'',to:'',preset:'all',tip:'',pais:'',conj:'',est:'act',who:''};
 let SORT={liga:'gasto',conj:'gasto',addia:'dia'},DIR={liga:-1,conj:-1,addia:1};
 let TAB=0,HOYF='',CMG='tipster',CMP='rango',CMS='';
 let CM={modo:'tipster',sel:[],q:'',met:'cpl',mm:7};   // comparador
-let FUNG='tipster',FUNQ='';                            // embudo por linea
+let FUNG='tipster',FUNQ='',PLACV='ubi';                            // embudo por linea
 let CONJQ='',CONJF='';                                 // buscador y filtros de la tabla de conjuntos
 let DIRTY=false;                                       // hay cambios de configuracion sin guardar
 let MAPAQ=null;                                        // medianas de los cuadrantes del mapa
@@ -479,6 +482,17 @@ function bind(){
   SIN=DATA.sin_conjunto||'Genérico (sin conjunto)';NOM=DATA.nombres||{};CU=DATA.cuadre||{};
   MG=DATA.meta_grupo||{};TOT=DATA.totales||null;OTD=DATA.otros_daily||[];
   D_MIN=DATA.rango[0];D_MAX=DATA.rango[1];FX=DATA.fx;
+  /* Cola de aprobación. Ojo: `solicitudes` y `entradas_vida` son totales DE POR VIDA del
+     enlace, no del periodo filtrado. Por eso los pendientes no entran nunca en `daily`
+     ni en el CPL: solo alimentan el CPL ajustado, que es un escenario, no una medición. */
+  PEND=DATA.pendientes||[];PENDF=DATA.pendientes_fecha||'';
+  PG={};PT={};
+  PEND.forEach(r=>{
+    const a=PG[r.grupo]=PG[r.grupo]||{pend:0,sol:0,vida:0};
+    a.pend+=r.pendientes||0;a.sol+=r.solicitudes||0;a.vida+=r.entradas_vida||0;
+    const b=PT[r.tipster]=PT[r.tipster]||{pend:0,sol:0,vida:0};
+    b.pend+=r.pendientes||0;b.sol+=r.solicitudes||0;b.vida+=r.entradas_vida||0;});
+  HAYPEND=PEND.length>0;
   D.forEach(r=>{if(!r.pais||!String(r.pais).trim())r.pais='—'});
   TIPS=[...new Set(D.map(r=>r.tipster))].sort();
   TIPS.forEach((t,i)=>TC[t]=PAL[i%PAL.length]);
@@ -658,10 +672,20 @@ function decide(c,ctx){
     'Ha gastado más de dos CPL objetivo sin una sola entrada',
     `${ef(c.gasto)} sin entradas, con objetivo de ${ef(T)} por entrada`,'alta','Conversión a canal');
 
-  if(T&&fiable&&c.cpl>T*(U.pausar_pct/100)) return R('AHORA','PAUSAR','b-pau',
-    'CPL muy por encima del objetivo, con volumen suficiente para afirmarlo',
-    `CPL de ${ef(c.cpl)} frente a un objetivo de ${ef(T)} · ${(c.cpl/T).toFixed(1)}× el objetivo, sobre ${nf(c.entradas)} entradas`,
-    'alta','Captación');
+  if(T&&fiable&&c.cpl>T*(U.pausar_pct/100)){
+    /* La aprobación manual puede disparar el CPL sin que el conjunto funcione mal:
+       si vaciando la cola el CPL volvería dentro del umbral, esto no se pausa, se desatasca. */
+    if(c.pend>0&&c.cplaj!==null&&c.cplaj<=T*(U.pausar_pct/100))
+      return R('REVISAR','VACIAR COLA','b-inv',
+        'El CPL se dispara por entradas sin aprobar, no por rendimiento',
+        `CPL de ${ef(c.cpl)} frente a ${ef(T)}, pero con ${nf(c.pend)} solicitudes sin aprobar el CPL ajustado sería ${ef(c.cplaj)} · aprueba la cola en PremiumPay antes de tocar nada`,
+        'media','Captación');
+    return R('AHORA','PAUSAR','b-pau',
+      'CPL muy por encima del objetivo, con volumen suficiente para afirmarlo',
+      `CPL de ${ef(c.cpl)} frente a un objetivo de ${ef(T)} · ${(c.cpl/T).toFixed(1)}× el objetivo, sobre ${nf(c.entradas)} entradas`+
+      (c.pend>0?` (ya descontadas ${nf(c.pend)} solicitudes pendientes: ni aprobándolas todas bajaría del umbral)`:''),
+      'alta','Captación');
+  }
 
   if(ctx.l2e&&c.l2e!==null&&c.l2e<ctx.l2e*0.5&&c.leads>=15) return R('REVISAR','INVESTIGAR','b-inv',
     'Consigue leads a buen precio pero casi nadie llega al Telegram',
@@ -701,7 +725,10 @@ function decide(c,ctx){
 function tarjetas(rows){
   let C=grp(rows,'grupo').map(c=>{
     const r=rows.find(x=>x.grupo===c.k);
-    return{...c,tipster:r?r.tipster:'',pais:r?r.pais:'—',est:estadoDe(c.k)}});
+    const pq=PG[c.k]||{pend:0,sol:0,vida:0};
+    return{...c,tipster:r?r.tipster:'',pais:r?r.pais:'—',est:estadoDe(c.k),
+      pend:pq.pend,aprob:pq.sol?pq.vida/pq.sol*100:null,
+      cplaj:pq.pend?dv(c.gasto,c.entradas+pq.pend):dv(c.gasto,c.entradas)}});
   const med=medianaActivos(C);
   const act=C.filter(c=>c.est.activo&&c.k!==SIN);
   const ctx={l2e:met(sum(rows.filter(r=>r.grupo!==SIN))).l2e};
@@ -722,6 +749,7 @@ function frescura(){
   if(TOT&&TOT.pct_atribuible<80)h.push(`<div class="warnbox"><h3>Sólo el ${TOT.pct_atribuible}% de la inversión es atribuible</h3><p>Se están midiendo <b>${ef(TOT.gasto_atribuible_eur)}</b> de un total real de <b>${ef(TOT.gasto_total_eur)}</b>. Los ${ef(TOT.gasto_otros_eur)} restantes son tipsters sin canal en PremiumPay: aparecen en el gasto de Meta pero ninguna entrada les cuenta. Todo el CPL de este panel se refiere sólo a la parte medible.</p></div>`);
   const nPag=CU.pagos||0;
   if((CU.pagadores||nPag)<CFG.umbral.pagadores_min)h.push(`<div class="warnbox"><h3>Retorno todavía no interpretable</h3><p>Hay <b>${nf(nPag)} pagos</b> en todo el periodo. El ROAS se mueve por completo con una persona, así que aquí se usa como indicio y nunca como motivo para mover presupuesto. Las decisiones se toman sobre <b>CPL</b>.</p></div>`);
+  h.push(avisoCola());
   h.push(avisoRechazos());
   h.push(avisoPacing());
   box.innerHTML=h.filter(Boolean).join('');
@@ -849,7 +877,9 @@ function historial(){
 function diagnostico(C){
   const T=document.getElementById('t-diag');
   const L=C.filter(c=>c.k!==SIN).sort((a,b)=>TIER[a.d.tier].n-TIER[b.d.tier].n||b.gasto-a.gasto);
-  T.querySelector('thead').innerHTML='<tr><th>Conjunto</th><th>Estado</th><th>Tipster</th><th>Inversión</th><th>Leads</th><th>Entradas</th><th>Lead→Entr.</th><th>CPL</th><th>Objetivo</th><th>Índice</th><th>Pagadores</th><th>Fase</th><th>Acción</th></tr>';
+  T.querySelector('thead').innerHTML='<tr><th>Conjunto</th><th>Estado</th><th>Tipster</th><th>Inversión</th><th>Leads</th><th>Entradas</th>'+
+    (HAYPEND?'<th>Pendientes</th>':'')+'<th>Lead→Entr.</th><th>CPL</th>'+(HAYPEND?'<th>CPL ajust.</th>':'')+
+    '<th>Objetivo</th><th>Índice</th><th>Pagadores</th><th>Fase</th><th>Acción</th></tr>';
   T.querySelector('tbody').innerHTML=L.map(c=>{
     const T_=c.objetivo.v,idx=T_&&c.cpl?c.cpl/T_:null;
     return `<tr class="${c.est.activo?'':'off'}">
@@ -857,7 +887,9 @@ function diagnostico(C){
     <td><span class="chip ${c.est.chip}">${esc(c.est.txt)}</span></td>
     <td><span class="dot" style="background:${TC[c.tipster]||'#999'}"></span>${esc(c.tipster)}</td>
     <td>${ef(c.gasto)}</td><td>${nf(c.leads)}</td><td>${nf(c.entradas)}</td>
+    ${HAYPEND?`<td>${c.pend?'<span class="neg">'+nf(c.pend)+'</span>':'—'}</td>`:''}
     <td>${c.l2e===null?'—':pf(c.l2e)}</td><td>${c.cpl===null?'—':ef(c.cpl)}</td>
+    ${HAYPEND?`<td>${c.pend&&c.cplaj?ef(c.cplaj):'—'}</td>`:''}
     <td>${T_?ef(T_)+(c.objetivo.fuente==='mediana'?'<span class="tag">med</span>':''):'—'}</td>
     <td>${idx?'<span class="'+(idx<=1?'pos':'neg')+'">'+idx.toFixed(2)+'×</span>':'—'}</td>
     <td>${nf(c.pagadores)}</td><td>${c.d.fase}</td>
@@ -880,8 +912,11 @@ function kpis(rows,prev){
 function tablaConj(C,rows){
   const T=document.getElementById('t-conj');
   const cols=[['k','Conjunto'],['estado','Estado'],['accion','Acción'],['gasto','Inversión'],['impresiones','Impr.'],['clics','Clics'],['ctr','CTR'],
-    ['leads','Leads'],['c2l','Clic→Lead'],['entradas','Entradas'],['l2e','Lead→Entr.'],['cpl','CPL'],['obj','Objetivo'],['idx','Índice'],
-    ['pagadores','Pagadores'],['ingresos','Ingresos'],['roas','ROAS']];
+    ['leads','Leads'],['c2l','Clic→Lead'],['entradas','Entradas']]
+    .concat(HAYPEND?[['pend','Pendientes']]:[])
+    .concat([['l2e','Lead→Entr.'],['cpl','CPL']])
+    .concat(HAYPEND?[['cplaj','CPL ajust.']]:[])
+    .concat([['obj','Objetivo'],['idx','Índice'],['pagadores','Pagadores'],['ingresos','Ingresos'],['roas','ROAS']]);
   let data=C.map(c=>({...c,obj:c.objetivo?c.objetivo.v:null,idx:(c.objetivo&&c.objetivo.v&&c.cpl)?c.cpl/c.objetivo.v:null,
     estado:c.est.txt,accion:c.d?c.d.accion:'—'}));
   /* --- filtros operativos: la tabla contesta «qué toco», no sólo «qué pasó» --- */
@@ -906,7 +941,7 @@ function tablaConj(C,rows){
   const tot=met(sum(rows));
   const mx={};['gasto','entradas','impresiones'].forEach(k=>mx[k]=Math.max(...data.map(x=>x[k]||0)));
   T.querySelector('thead').innerHTML='<tr>'+cols.map(c=>`<th data-k="${c[0]}">${c[1]}${s===c[0]?(dr<0?' ▼':' ▲'):''}</th>`).join('')+'</tr>';
-  const FM=(c,v)=>{if(['gasto','cpl','ingresos','obj'].includes(c))return v===null||v===undefined?'—':ef(v);
+  const FM=(c,v)=>{if(['gasto','cpl','ingresos','obj','cplaj'].includes(c))return v===null||v===undefined?'—':ef(v);
     if(['ctr','l2e','c2l'].includes(c))return v===null||v===undefined?'—':pf(v);if(c==='roas')return v===null?'—':xf(v);
     if(c==='idx')return v?v.toFixed(2)+'×':'—';return nf(v)};
   T.querySelector('tbody').innerHTML=data.map(d=>'<tr class="'+(d.k===SIN?'sin':(d.est.activo?'':'off'))+'">'+cols.map(c=>{
@@ -919,7 +954,10 @@ function tablaConj(C,rows){
     if(c[0]==='roas'&&d.roas!==null)v=`<span class="${d.roas>=1?'pos':'neg'}">${xf(d.roas)}</span>`;
     return `<td>${v}</td>`}).join('')+'</tr>').join('');
   T.querySelector('tfoot').innerHTML='<tr>'+cols.map(c=>c[0]==='k'?`<td>TOTAL (${data.length})</td>`:
-    (['estado','obj','idx','accion'].includes(c[0])?'<td>—</td>':`<td>${FM(c[0],tot[c[0]])}</td>`)).join('')+'</tr>';
+    (['estado','obj','idx','accion'].includes(c[0])?'<td>—</td>':
+     (c[0]==='pend'?`<td>${nf(data.reduce((a,d)=>a+(d.pend||0),0))}</td>`:
+     (c[0]==='cplaj'?`<td>${(()=>{const pe=data.reduce((a,d)=>a+(d.pend||0),0);const v=dv(tot.gasto,tot.entradas+pe);return v?ef(v):'—'})()}</td>`:
+      `<td>${FM(c[0],tot[c[0]])}</td>`)))).join('')+'</tr>';
   T.querySelectorAll('thead th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
     if(k===SORT.conj)DIR.conj*=-1;else{SORT.conj=k;DIR.conj=-1}render()});
   T.querySelectorAll('[data-goad]').forEach(e=>e.onclick=ev=>{ev.stopPropagation();ST.conj=e.dataset.goad;syncFiltros();setTab(2);render()});
@@ -937,24 +975,35 @@ function liga(rows){
   let L=grp(rows,'tipster');
   const T=document.getElementById('t-liga');
   const cols=[['k','Tipster'],['gasto','Inversión'],['impresiones','Impr.'],['clics','Clics'],['ctr','CTR'],['leads','Leads'],
-    ['c2l','Clic→Lead'],['entradas','Entradas'],['l2e','Lead→Entr.'],['cpl','CPL'],['pagadores','Pagadores'],
-    ['tasa','Entrada→Pago'],['ingresos','Ingresos'],['ing_ent','Ingreso/entrada'],['roas','ROAS']];
+    ['c2l','Clic→Lead'],['entradas','Entradas']]
+    .concat(HAYPEND?[['pend','Pendientes'],['aprob','Tasa aprob.']]:[])
+    .concat([['l2e','Lead→Entr.'],['cpl','CPL']])
+    .concat(HAYPEND?[['cplaj','CPL ajust.']]:[])
+    .concat([['pagadores','Pagadores'],['tasa','Entrada→Pago'],['ingresos','Ingresos'],['ing_ent','Ingreso/entrada'],['roas','ROAS']]);
   const MIN=CFG.umbral.entradas_min;
+  L=L.map(d=>{const q=PT[d.k]||{pend:0,sol:0,vida:0};
+    return{...d,pend:q.pend,aprob:q.sol?q.vida/q.sol*100:null,
+      cplaj:q.pend?dv(d.gasto,d.entradas+q.pend):null}});
   const s=SORT.liga,dr=DIR.liga;
   L.sort((a,b)=>typeof a[s]==='string'?dr*String(a[s]).localeCompare(b[s]):dr*((a[s]||0)-(b[s]||0)));
   const tot=met(sum(rows));
   T.querySelector('thead').innerHTML='<tr>'+cols.map(c=>`<th data-k="${c[0]}">${c[1]}${s===c[0]?(dr<0?' ▼':' ▲'):''}</th>`).join('')+'</tr>';
-  const FM=(c,v)=>{if(['gasto','cpl','ingresos','ing_ent'].includes(c))return v===null||v===undefined||!isFinite(v)?'—':ef(v);
-    if(['ctr','l2e','c2l','tasa'].includes(c))return v===null||v===undefined?'—':pf(v);if(c==='roas')return v===null?'—':xf(v);return nf(v)};
+  const FM=(c,v)=>{if(['gasto','cpl','ingresos','ing_ent','cplaj'].includes(c))return v===null||v===undefined||!isFinite(v)?'—':ef(v);
+    if(['ctr','l2e','c2l','tasa','aprob'].includes(c))return v===null||v===undefined?'—':pf(v);if(c==='roas')return v===null?'—':xf(v);return nf(v)};
   T.querySelector('tbody').innerHTML=L.map(d=>'<tr class="'+(d.entradas<MIN?'lowdata':'')+'">'+cols.map(c=>c[0]==='k'
     ?`<td class="nm"><span class="dot" style="background:${TC[d.k]||'#999'}"></span>${esc(d.k)}${d.entradas<MIN?' <span class="chip ch-dor">muestra baja</span>':''}</td>`
     :`<td>${c[0]==='roas'&&d.roas!==null?'<span class="'+(d.roas>=1?'pos':'neg')+'">'+xf(d.roas)+'</span>':FM(c[0],d[c[0]])}</td>`).join('')+'</tr>').join('');
-  T.querySelector('tfoot').innerHTML='<tr>'+cols.map(c=>c[0]==='k'?'<td>TOTAL</td>':`<td>${FM(c[0],tot[c[0]])}</td>`).join('')+'</tr>';
+  const totPend=L.reduce((a,d)=>a+(d.pend||0),0);
+  T.querySelector('tfoot').innerHTML='<tr>'+cols.map(c=>c[0]==='k'?'<td>TOTAL</td>':
+    (c[0]==='pend'?`<td>${nf(totPend)}</td>`:
+    (c[0]==='cplaj'?`<td>${totPend?ef(dv(tot.gasto,tot.entradas+totPend)):'—'}</td>`:
+    (c[0]==='aprob'?'<td>—</td>':`<td>${FM(c[0],tot[c[0]])}</td>`)))).join('')+'</tr>';
   T.querySelectorAll('thead th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
     if(k===SORT.liga)DIR.liga*=-1;else{SORT.liga=k;DIR.liga=-1}render()});
   const flojos=L.filter(d=>d.entradas<MIN);
   document.getElementById('liga-note').innerHTML=
     `Aquí no hay una nota global ni un ganador único: <b>ordena por la columna que te importe</b> —CPL para captación, Lead→Entrada para el paso a Telegram, Entrada→Pago o Ingreso/entrada para monetización— porque el mejor en una casi nunca es el mejor en todas. `+
+    (HAYPEND?`<b>Pendientes</b> es la cola de aprobación de PremiumPay${PENDF?' a '+esc(PENDF):''}: solicitudes que aún no son entradas. Son totales <b>de por vida del enlace</b>, no del periodo, así que el <b>CPL ajustado</b> —inversión entre entradas más pendientes— es el escenario «si se aprobara toda la cola», un suelo orientativo, no una medición. `:'')+
     (flojos.length?`<b>${flojos.length} con muestra baja</b> (${flojos.map(d=>esc(d.k)).join(', ')}): menos de ${MIN} entradas en la ventana, sus ratios son ruido y no deberían ordenar nada.`:`Todos superan las ${MIN} entradas mínimas, así que los ratios son comparables entre sí.`);
 }
 /* Los cuatro cuadrantes se dibujan sobre las medianas del propio periodo: un conjunto es
@@ -1072,6 +1121,7 @@ function ficha(){
     (m.rechazados&&m.rechazados.length?`<span class="pill" style="background:#f6e4e5;border-color:#e0b6b8;color:#8e2226;font-weight:700">${m.rechazados.length} rechazados por Meta</span>`:'')+
     (m.adsets&&m.adsets.length>1?`<span class="pill">${m.adsets.length} conjuntos con esta clave</span>`:'')+
     (m.frecuencia?`<span class="pill">Frecuencia máx. ${m.frecuencia.toFixed(2)}×</span>`:'')+
+    ((PG[g]&&PG[g].pend)?`<span class="pill" style="background:#fdf0dc;border-color:#e8cfa4;color:#8a5a00;font-weight:700">${nf(PG[g].pend)} sin aprobar</span>`:'')+
     `<button class="pill" id="ad-clear">Quitar filtro</button>`;
   document.getElementById('ad-clear').onclick=()=>{ST.conj='';syncFiltros();render()};
 
@@ -1088,8 +1138,10 @@ function ficha(){
       objc=`${ef(obj)} ${idx?'<span class="'+(idx<=1?'pos':'neg')+'">'+idx.toFixed(2)+'×</span>':''}`}
     return `<tr><td>${lb}</td><td>${cell(V.hoy[k])}</td><td>${cell(V.d7[k])}</td><td>${cell(V.d30[k])}</td>
       <td><b>${cell(V.sel[k])}</b></td><td>${objc}</td></tr>`}).join('');
+  const _q=PG[g];
   document.getElementById('ad-note').innerHTML=
     `Las columnas de 7 y 30 días se cuentan hacia atrás desde <b>${ult}</b>, el último día con datos, y no dependen del filtro de fechas. La columna «Periodo filtrado» sí. `+
+    ((_q&&_q.pend)?`<br><b>${nf(_q.pend)} solicitudes sin aprobar</b> en la cola de PremiumPay${PENDF?' ('+esc(PENDF)+')':''}: si se aprobaran todas, el CPL del periodo pasaría de <b>${ef(V.sel.cpl)}</b> a <b>${ef(dv(V.sel.gasto,V.sel.entradas+_q.pend))}</b>. Tasa de aprobación histórica del enlace: ${_q.sol?pf(_q.vida/_q.sol*100):'—'}. Los pendientes no tienen fecha, así que no entran en la tabla diaria ni en el CPL: este número es un escenario, no una medición. `:'')+
     (card.d?`Decisión actual: <b>${esc(card.d.accion)}</b> — ${esc(card.d.causa)}, ${esc(card.d.motivo)}.`:'')+
     (est.nota?` Nota del equipo: «${esc(est.nota)}»${est.owner?' — '+esc(est.owner):''}.`:'')+
     (m.rechazados&&m.rechazados.length?`<br><b>Anuncios rechazados por Meta:</b> ${m.rechazados.map(esc).join(', ')}. Mientras sigan rechazados el conjunto entrega peor: no interpretes el CPL como un problema de audiencia o de puja.`:'');
@@ -1214,10 +1266,37 @@ function embudoLinea(){
   const tot=met(sum(rows));
   T.querySelector('tfoot').innerHTML='<tr>'+cols.map(c=>c[0]==='k'?`<td>TOTAL (${L.length})</td>`:`<td>${FM(c[0],tot[c[0]])}</td>`).join('')+'</tr>';
 }
+/* Meta manda la ubicación (Feed, Reels, Stories…) y la plataforma (Facebook, Instagram)
+   como dos desgloses distintos. Si el export sólo trae el de ubicación, «Feed» viene sumado
+   entre Facebook e Instagram y no hay forma de separarlo aquí: hay que añadir el desglose
+   de plataforma en Meta y regenerar data.json. Lo que sí se puede es agrupar por la
+   plataforma que ya delata la etiqueta (FB Reels, IG Stories…). */
+const PL_FB=new Set(['Marketplace','Right column','Búsqueda']);
+const PL_IG=new Set(['IG búsqueda']);
+const PL_AN=new Set(['Audience Network','Vídeo recompensado']);
+function plataformaDe(k){
+  if(/^FB[ ·]/.test(k)||PL_FB.has(k))return 'Facebook';
+  if(/^IG[ ·]/.test(k)||PL_IG.has(k))return 'Instagram';
+  if(PL_AN.has(k))return 'Audience Network';
+  return 'Sin desglosar';
+}
 function placement(){
+  document.getElementById('plac-vista').innerHTML=[['ubi','Por ubicación'],['plat','Por plataforma']]
+    .map(([v,t])=>`<button class="pill${v===PLACV?' on':''}" data-pv="${v}">${t}</button>`).join('');
+  document.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>{PLACV=b.dataset.pv;render()});
   const rows=PLAC.filter(r=>r.dia>=ST.from&&r.dia<=ST.to&&(!ST.tip||r.tipster===ST.tip));
-  const o={};rows.forEach(r=>{const k=r.placement;o[k]=o[k]||{k,gasto:0,impresiones:0,clics:0,lpv:0,leads:0};
+  const o={};rows.forEach(r=>{const k=PLACV==='plat'?plataformaDe(r.placement):r.placement;
+    o[k]=o[k]||{k,gasto:0,impresiones:0,clics:0,lpv:0,leads:0};
     o[k].gasto+=r.gasto_usd*FX;['impresiones','clics','lpv','leads'].forEach(x=>o[k][x]+=r[x]||0)});
+  /* aviso si el export todavía viene sin el desglose de plataforma */
+  const sinDes=rows.filter(r=>plataformaDe(r.placement)==='Sin desglosar');
+  const gSin=sinDes.reduce((a,r)=>a+r.gasto_usd*FX,0), gTot=rows.reduce((a,r)=>a+r.gasto_usd*FX,0);
+  document.getElementById('plac-aviso').innerHTML=(gSin>gTot*0.05)
+    ? `<div class="wm"><b>${ef(gSin)} (${(gSin/gTot*100).toFixed(0)}% de la inversión) no se puede repartir entre Facebook e Instagram.</b>
+       Son ubicaciones que Meta devuelve sin plataforma —sobre todo <code>Feed</code>, que suma el de Facebook y el de Instagram en una sola fila—.
+       Para separarlo hay que añadir el desglose <b>Platform</b> junto a <b>Placement</b> en el informe de Ads Reporting y volver a generar <code>data.json</code>;
+       a partir de ahí aparecerán <code>FB Feed</code> e <code>IG Feed</code> por separado. Está detallado en el RUNBOOK, paso 2.</div>`
+    : '';
   let data=Object.values(o).sort((a,b)=>b.gasto-a.gasto);
   const tot={gasto:0,impresiones:0,clics:0,lpv:0,leads:0};
   data.forEach(d=>{tot.gasto+=d.gasto;['impresiones','clics','lpv','leads'].forEach(x=>tot[x]+=d[x])});
@@ -1276,7 +1355,9 @@ function cmpUni(){
 const CMFILAS=[['gasto','Inversión',ef,0],['impresiones','Impresiones',nf,0],['cpm','CPM',ef,-1],
   ['clics','Clics',nf,0],['ctr','CTR',pf,1],['cpc','CPC',ef,-1],['leads','Leads',nf,0],
   ['c2l','Clic → Lead',pf,1],['cplm','Coste por lead (Meta)',ef,-1],['entradas','Entradas',nf,0],
-  ['l2e','Lead → Entrada',pf,1],['cpl','CPL (coste por entrada)',ef,-1],['obj','Objetivo de CPL',ef,0],
+  ['l2e','Lead → Entrada',pf,1],['cpl','CPL (coste por entrada)',ef,-1],
+  ['pend','Pendientes de aprobar',nf,-1],['aprob','Tasa de aprobación',pf,1],['cplaj','CPL si se aprueba la cola',ef,-1],
+  ['obj','Objetivo de CPL',ef,0],
   ['idx','CPL vs objetivo',v=>v.toFixed(2)+'×',-1],['pagadores','Pagadores',nf,0],['tasa','Entrada → Pago',pf,1],
   ['ingresos','Ingresos',ef,0],['ing_ent','Ingreso por entrada',ef,1],['ticket','Ingreso por pagador',ef,1],['roas','ROAS',xf,1]];
 const CMMET=[['cpl','CPL'],['entradas','Entradas'],['gasto','Inversión'],['leads','Leads'],
@@ -1332,13 +1413,18 @@ function cmpTablas(uni,med,reuse){
     e.obj=ob.v;e.objf=ob.fuente;
     e.idx=(ob.v&&e.cpl)?e.cpl/ob.v:null;
     e.bajo=e.entradas<CFG.umbral.entradas_min;
+    /* la cola de aprobación no se puede repartir por país: solo por conjunto o tipster */
+    const q=CM.modo==='grupo'?PG[e.k]:(CM.modo==='tipster'?PT[e.k]:null);
+    e.pend=q?q.pend:null;
+    e.aprob=(q&&q.sol)?q.vida/q.sol*100:null;
+    e.cplaj=(q&&q.pend)?dv(e.gasto,e.entradas+q.pend):null;
   });
 
   /* ---------- cara a cara ---------- */
   const T=document.getElementById('t-cmp');
   T.querySelector('thead').innerHTML='<tr><th>Métrica</th>'+E.map(e=>
     `<th>${CM.modo==='pais'?'':'<span class="dot" style="background:'+(TC[CM.modo==='tipster'?e.k:e.tipster]||'#999')+'"></span>'}${esc(e.k)}${e.bajo?' ⚠':''}</th>`).join('')+'</tr>';
-  const cuerpo=CMFILAS.map(([k,lb,fmt,dir])=>{
+  const cuerpo=CMFILAS.filter(([k])=>HAYPEND||!['pend','aprob','cplaj'].includes(k)).map(([k,lb,fmt,dir])=>{
     const vals=E.map(e=>{const v=e[k];return (v===null||v===undefined||!isFinite(v))?null:v});
     const def=vals.filter(v=>v!==null);
     let bi=-1,wi=-1;
@@ -1355,10 +1441,12 @@ function cmpTablas(uni,med,reuse){
   const flojos=E.filter(e=>e.bajo).map(e=>e.k);
   document.getElementById('cmp-note').innerHTML=
     `El objetivo de CPL se resuelve por la clave más específica que exista (tipster + país → tipster → global); cuando no hay ninguno se usa la mediana de los conjuntos activos y la fila «Objetivo» lo refleja igualmente. `+
+    (HAYPEND&&CM.modo!=='pais'?`«Pendientes» es la cola de aprobación de PremiumPay${PENDF?' a '+esc(PENDF):''}, en totales de por vida del enlace: la fila «CPL si se aprueba la cola» es un escenario, no una medición${CM.modo==='pais'?'':''}. `:'')+
+    (HAYPEND&&CM.modo==='pais'?`La cola de aprobación no se puede repartir por país, así que esas filas no aparecen en este modo. `:'')+
     (flojos.length?`<b>Muestra baja en ${flojos.map(esc).join(', ')}</b>: menos de ${CFG.umbral.entradas_min} entradas en la ventana, así que su CPL y sus porcentajes son ruido más que señal. `:'')+
     `El ROAS se calcula por cohorte de entrada; con ${nf(CU.pagos||0)} pagos en total no sirve para mover presupuesto, sólo como indicio.`;
   window.__cmp={head:['Métrica'].concat(E.map(e=>e.k)),
-    filas:CMFILAS.map(([k,lb,fmt])=>[lb].concat(E.map(e=>{const v=e[k];
+    filas:CMFILAS.filter(([k])=>HAYPEND||!['pend','aprob','cplaj'].includes(k)).map(([k,lb,fmt])=>[lb].concat(E.map(e=>{const v=e[k];
       return (v===null||v===undefined||!isFinite(v))?'':(typeof v==='number'?v.toFixed(2).replace('.',','):v)})))};
   document.getElementById('cmp-copy').onclick=()=>cmpExp('copy');
   document.getElementById('cmp-csv').onclick=()=>cmpExp('csv');
@@ -1603,6 +1691,25 @@ function out(o) {
 
 /* anuncios rechazados por Meta: gastan hasta que los rechazan y luego el conjunto
    entrega peor. No es un problema de rendimiento, es de moderación. */
+/* La cola de aprobación es una foto del momento de la extracción, con totales de por vida
+   del enlace. No se puede repartir por día ni sumar a las entradas del periodo. */
+function avisoCola(){
+  if(!HAYPEND)return '';
+  const tot=PEND.reduce((a,r)=>a+(r.pendientes||0),0);
+  if(!tot)return '';
+  const ent=met(sum(rowsBase())).entradas||0;
+  const pct=ent?tot/ent*100:0;
+  const top=Object.entries(PG).filter(([g,v])=>v.pend>0&&g!==SIN)
+    .sort((a,b)=>b[1].pend-a[1].pend).slice(0,4);
+  if(pct<2)return '';
+  return `<div class="warnbox"><h3>${nf(tot)} solicitudes sin aprobar en la cola de PremiumPay</h3>
+    <p>Equivalen al <b>${pct.toFixed(0)}%</b> de las entradas del periodo. Son personas que ya hicieron clic y pidieron entrar
+    pero que <b>no cuentan como entrada hasta que alguien las apruebe a mano</b>, así que el CPL de estos conjuntos sale peor de lo que es.
+    Los que más acumulan: ${top.map(([g,v])=>esc(g)+' ('+nf(v.pend)+')').join(', ')}.
+    ${PENDF?'Foto de la cola del '+esc(PENDF)+'.':''}
+    El panel no las suma a las entradas —no tienen fecha y se contarían dos veces al aprobarse—, pero sí calcula el
+    <b>CPL ajustado</b> y frena las órdenes de pausar cuando el problema es la cola y no el rendimiento.</p></div>`;
+}
 function avisoRechazos(){
   const L=[];
   Object.entries(MG).forEach(([g,m])=>{
